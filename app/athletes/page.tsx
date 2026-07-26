@@ -31,7 +31,7 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler, RadarController, RadialLinearScale);
 
-// ==================== TIPE DATA LENGKAP ====================
+// ==================== TIPE DATA ====================
 type Atlet = {
   id: number;
   Nama: string;
@@ -69,7 +69,7 @@ type PrestasiAtlet = {
   id: number;
   NamaAtlet: string;
   JenisKejuaraan: string;
-  katagori:  string;
+  katagori: string;
   Tanggal: string;
   Lokasi: string;
   Medali: string;
@@ -122,27 +122,20 @@ export default function AthletesPage() {
   const climbingRef = useRef<HTMLDivElement>(null);
   const strengthChartRef = useRef<HTMLDivElement>(null);
 
-  // ==================== FUNGSI HITUNG UMUR OTOMATIS ====================
   const calculateAge = (tanggalLahir?: string): string => {
     if (!tanggalLahir) return '-';
-
     const birthDate = new Date(tanggalLahir);
     const today = new Date();
-
     let years = today.getFullYear() - birthDate.getFullYear();
     let months = today.getMonth() - birthDate.getMonth();
-
     if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
       years--;
       months += 12;
     }
-
-    if (months < 0) months = 0;
-
     return `${years} tahun ${months} bulan`;
   };
 
-  // Load data Supabase
+  // Load Data
   useEffect(() => {
     const fetchAtlets = async () => {
       const { data } = await supabase.from('atlets').select('*').order('id');
@@ -178,18 +171,34 @@ export default function AthletesPage() {
   }, []);
 
   useEffect(() => {
+    if (!selectedAtlet) return;
+
+    const refreshClimbing = async () => {
+      const { data } = await supabase
+        .from('climbing_progress')
+        .select('*')
+        .eq('athlete_name', selectedAtlet.Nama);
+      if (data) {
+        setClimbingData(prev => ({ ...prev, [selectedAtlet.Nama]: data }));
+      }
+    };
+
+    refreshClimbing();
+  }, [selectedAtlet]);
+
+  useEffect(() => {
+    if (!selectedAtlet) return;
+
     const fetchCertificates = async () => {
-      if (!selectedAtlet) return;
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('certificates')
         .select('*')
         .eq('athlete_name', selectedAtlet.Nama)
         .order('uploaded_at', { ascending: false });
-      if (!error) setCertificates(data || []);
+      if (data) setCertificates(data || []);
     };
 
     const fetchUpcoming = async () => {
-      if (!selectedAtlet) return;
       const { data } = await supabase
         .from('upcoming_training')
         .select('*')
@@ -202,7 +211,6 @@ export default function AthletesPage() {
     fetchUpcoming();
   }, [selectedAtlet]);
 
-  // ==================== DATA FILTER ====================
   const atletSessions = allSessions
     .filter(s => selectedAtlet && s.NamaAtlet === selectedAtlet.Nama)
     .sort((a, b) => new Date(a.Tanggal).getTime() - new Date(b.Tanggal).getTime());
@@ -224,7 +232,29 @@ export default function AthletesPage() {
     return values.length > 0 ? parseFloat((values.reduce((a, b) => a + b, 0) / values.length).toFixed(1)) : 0;
   });
 
-  // ==================== CHART ASLI ====================
+  const atletClimbing = selectedAtlet 
+    ? [...(climbingData[selectedAtlet.Nama] || [])].sort((a, b) => a.minggu - b.minggu) 
+    : [];
+
+  // Evaluasi Mingguan HANYA 2 MINGGU TERAKHIR
+  const weeklyEvaluation = atletClimbing
+    .slice(-2) // Ambil hanya 2 minggu terakhir
+    .map((week, index, arr) => {
+      const prevWeek = arr[index - 1];
+      return {
+        minggu: week.minggu,
+        grade: week.grade,
+        gradeNumeric: week.gradeNumeric,
+        volume: week.volumeClimbing,
+        sends: week.sends,
+        fingerHang: week.fingerHang20mm,
+        pullUp: week.weightedPullupKg,
+        energyAvg: 7.5, // bisa dihitung lebih akurat nanti
+        improvement: prevWeek ? (week.gradeNumeric - prevWeek.gradeNumeric) : 0
+      };
+    });
+
+  // Chart Data
   const lineData = {
     labels: atletSessions.map(s => new Date(s.Tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })),
     datasets: [
@@ -241,7 +271,7 @@ export default function AthletesPage() {
       y: { min: 0, max: 10, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
       x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
     },
-  };
+  } as const;
 
   const radarData = {
     labels: fitnessKeys,
@@ -261,10 +291,7 @@ export default function AthletesPage() {
       r: { min: 0, max: 10, grid: { color: 'rgba(255,255,255,0.1)' }, pointLabels: { color: '#cbd5e1' }, ticks: { color: '#94a3b8' } } 
     },
     plugins: { legend: { labels: { color: '#cbd5e1' } } },
-  };
-
-  // ==================== DATA CLIMBING PER ATLET ====================
-  const atletClimbing = selectedAtlet ? (climbingData[selectedAtlet.Nama] || []) : [];
+  } as const;
 
   const gradeChartData = {
     labels: atletClimbing.map(c => `Minggu ${c.minggu}`),
@@ -272,22 +299,40 @@ export default function AthletesPage() {
       label: 'Grade Maksimal',
       data: atletClimbing.map(c => c.gradeNumeric),
       borderColor: '#3b82f6',
-      backgroundColor: 'rgba(59, 130, 246, 0.2)',
-      tension: 0.3,
+      backgroundColor: 'rgba(59, 130, 246, 0.25)',
+      borderWidth: 3,
+      tension: 0.4,
       fill: true,
     }],
   };
 
+  const gradeOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#cbd5e1' } } },
+    scales: {
+      y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
+      x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
+    },
+  } as const;
+
   const strengthChartData = {
     labels: atletClimbing.map(c => `Minggu ${c.minggu}`),
     datasets: [
-      { label: 'Finger Hang (detik)', data: atletClimbing.map(c => c.fingerHang20mm), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.2)', tension: 0.3 },
-      { label: 'Weighted Pull-up (kg)', data: atletClimbing.map(c => c.weightedPullupKg), borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.2)', tension: 0.3 },
+      { label: 'Finger Hang (detik)', data: atletClimbing.map(c => c.fingerHang20mm), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.2)', tension: 0.3, borderWidth: 3 },
+      { label: 'Weighted Pull-up (kg)', data: atletClimbing.map(c => c.weightedPullupKg), borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.2)', tension: 0.3, borderWidth: 3 },
     ],
   };
 
-  const gradeOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#cbd5e1' } } } };
-  const strengthOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#cbd5e1' } } } };
+  const strengthOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#cbd5e1' } } },
+    scales: {
+      y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
+      x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
+    },
+  } as const;
 
   const captureWithDelay = async (ref: React.RefObject<HTMLDivElement | null>) => {
     if (!ref.current) return null;
@@ -295,17 +340,14 @@ export default function AthletesPage() {
     return await html2canvas(ref.current, { scale: 3, backgroundColor: '#1e2937' });
   };
 
-  // ==================== DOWNLOAD PDF ====================
   const downloadPDF = async () => {
     if (!selectedAtlet) return;
-    // Loading notification
-    const loadingMsg = alert("Sedang membuat PDF... Mohon tunggu sebentar.");
+    alert("Sedang membuat PDF... Mohon tunggu sebentar.");
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    let y = 45; // Mulai lebih atas
+    let y = 45;
 
-    // Header
     doc.setFillColor(10, 20, 40);
     doc.rect(0, 0, pageWidth, 35, 'F');
     doc.setTextColor(255, 255, 255);
@@ -319,34 +361,23 @@ export default function AthletesPage() {
     doc.text('BIODATA ATLET', 20, y);
     y += 6;
     doc.line(20, y, pageWidth - 20, y);
-    y += 8;
+    y += 10;
 
     if (selectedAtlet.Foto) {
-      try { doc.addImage(selectedAtlet.Foto, 'JPEG', pageWidth - 70, y - 3, 37, 37); } catch (e) {}
+      try { doc.addImage(selectedAtlet.Foto, 'JPEG', pageWidth - 70, y - 3, 50, 50); } catch (e) {}
     }
 
     doc.setFontSize(11);
 
-    // Helper wrapping 
-    const addWrappedText = (text: string, x: number, maxWidth: number, lineHeight: number = 6) => {
-      const lines = doc.splitTextToSize(text, maxWidth);
-      lines.forEach((line: string) => {
-        if (y > 280) { doc.addPage(); y = 30; }
-        doc.text(line, x, y);
-        y += lineHeight;
-      });
-      return lines.length * lineHeight;
-    };
-
     const addLine = (label: string, value: any) => {
       if (y > 280) { doc.addPage(); y = 30; }
       doc.text(label, 20, y);
-      const valueText = ': ' + (value || '-');
-      addWrappedText(valueText, 80, pageWidth - 100, 6);
-      y += 1; // Jarak pdf
+      const valueText = `: ${value || '-'}`;
+      const lines = doc.splitTextToSize(valueText, pageWidth - 100);
+      doc.text(lines, 80, y);
+      y += lines.length * 7;
     };
 
-    // Biodata
     addLine("Nama Lengkap", selectedAtlet.Nama);
     addLine("Usia", calculateAge(selectedAtlet.TanggalLahir));
     addLine("Jenis Kelamin", selectedAtlet.JenisKelamin);
@@ -356,19 +387,17 @@ export default function AthletesPage() {
     addLine("Golongan Darah", selectedAtlet.GolonganDarah);
     addLine("Alamat", selectedAtlet.Alamat);
     addLine("Riwayat Penyakit", selectedAtlet.RiwayatPenyakit || "Tidak ada");
-    y += 8;
+    y += 10;
 
-    // Prestasi
     if (atletPrestasi.length > 0) {
       if (y > 200) { doc.addPage(); y = 30; }
-
-      doc.setFontSize(15);
+      doc.setFontSize(14);
       doc.text('PRESTASI ATLET', 20, y);
-      y += 8;
+      y += 6;
       doc.line(20, y, pageWidth - 20, y);
-      y += 15;
+      y += 12;
 
-      const colWidth = 62;
+      const colWidth = 58;
       let col = 0;
       let startY = y;
 
@@ -376,11 +405,7 @@ export default function AthletesPage() {
         const p = atletPrestasi[i];
         const x = 20 + (col * colWidth);
 
-        if (y > 265) {
-          doc.addPage();
-          y = 40;
-          startY = y;
-        }
+        if (y > 265) { doc.addPage(); y = 40; startY = y; }
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(10);
@@ -390,23 +415,19 @@ export default function AthletesPage() {
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9.5);
-        doc.text(p.Tanggal, x, y);
-        y += 5;
-        doc.text(p.katagori, x, y);
-        y += 5;
+        doc.text(`  ${p.Tanggal}`, x, y); y += 5;
+        doc.text(`  ${p.katagori}`, x, y); y += 5;
 
-        const loc = doc.splitTextToSize(p.Lokasi || '-', colWidth - 5);
-        doc.text(loc, x, y);
-        y += loc.length * 5;
+        const loc = doc.splitTextToSize(`  ${p.Lokasi || '-'}`, colWidth - 5);
+        doc.text(loc, x, y); y += loc.length * 5;
 
         doc.setTextColor(0, 150, 0);
-        doc.text(p.Medali, x, y);
+        doc.text(`  ${p.Medali}`, x, y);
         doc.setTextColor(0);
 
         col = (col + 1) % 3;
-
         if (col === 0) {
-          y = startY + 45; // Jarak antar baris baru
+          y = startY + 48;
           startY = y;
         } else {
           y = startY;
@@ -415,8 +436,6 @@ export default function AthletesPage() {
       y += 25;
     }
 
-
-    // Ringkasan
     if (y > 220) { doc.addPage(); y = 30; }
     doc.setFontSize(14);
     doc.text('RINGKASAN PERFORMA', 20, y);
@@ -429,7 +448,6 @@ export default function AthletesPage() {
     doc.text(`Rata-rata Energy   : ${avgEnergy} / 10`, 20, y); y += 6;
     doc.text(`Rata-rata Fatigue  : ${avgFatigue} / 10`, 20, y); y += 10;
 
-    // Charts
     if (lineRef.current && atletSessions.length > 0) {
       if (y > 180) { doc.addPage(); y = 30; }
       const canvas = await captureWithDelay(lineRef);
@@ -442,7 +460,6 @@ export default function AthletesPage() {
       if (canvas) { doc.addImage(canvas.toDataURL('image/png'), 'PNG', 20, y, 165, 75); y += 82; }
     }
 
-    // Progres Panjat
     if (atletClimbing.length > 0) {
       if (y > 200) { doc.addPage(); y = 30; }
       doc.setFontSize(14);
@@ -453,7 +470,9 @@ export default function AthletesPage() {
 
       doc.setFontSize(11);
       doc.text(`Total Minggu Data: ${atletClimbing.length}`, 20, y); y += 6;
-      doc.text(`Grade Awal → Akhir: ${atletClimbing[0].grade} → ${atletClimbing[atletClimbing.length - 1].grade}`, 20, y); y += 6;
+      if (atletClimbing.length > 1) {
+        doc.text(`Grade Awal → Akhir: ${atletClimbing[0].grade} → ${atletClimbing[atletClimbing.length - 1].grade}`, 20, y); y += 6;
+      }
       doc.text(`Total Volume: ${atletClimbing.reduce((sum, c) => sum + c.volumeClimbing, 0)}`, 20, y); y += 10;
 
       atletClimbing.forEach((c, i) => {
@@ -477,7 +496,6 @@ export default function AthletesPage() {
       }
     }
 
-    // Riwayat Latihan
     if (y > 200) { doc.addPage(); y = 30; }
     doc.setFontSize(14);
     doc.text('RIWAYAT LATIHAN', 20, y);
@@ -494,6 +512,7 @@ export default function AthletesPage() {
     });
 
     doc.save(`Laporan_Progres_${selectedAtlet.Nama.replace(/\s+/g, '_')}.pdf`);
+    alert("PDF berhasil dibuat dan diunduh!");
   };
 
   const downloadCertificate = async (url: string, fileName: string) => {
@@ -530,19 +549,46 @@ export default function AthletesPage() {
         <h1 style={{ fontSize: '42px', fontWeight: 'bold', textAlign: 'center', marginBottom: '40px' }}>Area Atlet</h1>
 
         {!selectedAtlet && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
-            {atlets.map((atlet, index) => (
-              <div key={index} onClick={() => setSelectedAtlet(atlet)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '24px', overflow: 'hidden', cursor: 'pointer', height: '340px', display: 'flex', flexDirection: 'column' }}>
-                {atlet.Foto ? <img src={atlet.Foto} alt={atlet.Nama} style={{ width: '100%', height: '200px', objectFit: 'cover' }} /> : <div style={{ height: '200px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Photo</div>}
-                <div style={{ padding: '20px', flex: 1 }}>
-                  <h3 style={{ margin: '0 0 8px 0', fontSize: '20px' }}>{atlet.Nama}</h3>
-                  <p style={{ color: '#94a3b8', margin: 0 }}>
-                    {calculateAge(atlet.TanggalLahir)} • {atlet.GolonganDarah}
-                  </p>
+          <>
+            <style jsx>{`
+              .atlet-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                gap: 18px;
+                padding: 0 10px;
+              }
+              @media (max-width: 768px) {
+                .atlet-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 12px; }
+              }
+              .atlet-card {
+                background: rgba(255,255,255,0.08);
+                border: 1px solid rgba(56,189,248,0.3);
+                border-radius: 16px;
+                overflow: hidden;
+                cursor: pointer;
+                transition: all 0.3s;
+              }
+              .atlet-card:hover { transform: scale(1.05); }
+              .atlet-photo { width: 100%; height: 145px; object-fit: cover; }
+              @media (max-width: 768px) { .atlet-photo { height: 110px; } }
+            `}</style>
+
+            <div className="atlet-grid">
+              {atlets.map((atlet, index) => (
+                <div key={index} className="atlet-card" onClick={() => setSelectedAtlet(atlet)}>
+                  {atlet.Foto ? (
+                    <img src={atlet.Foto} alt={atlet.Nama} className="atlet-photo" />
+                  ) : (
+                    <div style={{ height: '110px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Photo</div>
+                  )}
+                  <div style={{ padding: '12px', textAlign: 'center' }}>
+                    <h3 style={{ margin: '0 0 6px 0', fontSize: '15.5px', fontWeight: 'bold' }}>{atlet.Nama}</h3>
+                    <p style={{ color: '#94a3b8', margin: 0, fontSize: '13px' }}>{calculateAge(atlet.TanggalLahir)}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
 
         {selectedAtlet && (
@@ -551,17 +597,15 @@ export default function AthletesPage() {
               ← Kembali ke Daftar Atlet
             </button>
 
-            <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '24px', padding: '40px' }}>
-              <div style={{ display: 'flex', gap: '30px', alignItems: 'center', marginBottom: '30px' }}>
-                {selectedAtlet.Foto && <img src={selectedAtlet.Foto} alt="" style={{ width: '160px', borderRadius: '20px' }} />}
-                <div>
-                  <h1 style={{ fontSize: '36px', margin: 0 }}>{selectedAtlet.Nama}</h1>
-                  <p style={{ color: '#94a3b8', fontSize: '18px' }}>
-                    {calculateAge(selectedAtlet.TanggalLahir)} • {selectedAtlet.GolonganDarah}
-                  </p>
+            <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '24px', padding: '30px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', marginBottom: '30px' }}>
+                {selectedAtlet.Foto && <img src={selectedAtlet.Foto} alt="" style={{ width: '100%', maxWidth: '280px', borderRadius: '20px' }} />}
+                <div style={{ textAlign: 'center' }}>
+                  <h1 style={{ fontSize: '32px', margin: '10px 0' }}>{selectedAtlet.Nama}</h1>
+                  <p style={{ color: '#94a3b8', fontSize: '18px' }}>{calculateAge(selectedAtlet.TanggalLahir)} • {selectedAtlet.GolonganDarah}</p>
                 </div>
-                <button onClick={downloadPDF} style={{ marginLeft: 'auto', padding: '14px 28px', background: '#38bdf8', color: 'white', border: 'none', borderRadius: '14px', fontWeight: 'bold' }}>
-                  Unduh Laporan PDF
+                <button onClick={downloadPDF} style={{ padding: '14px 32px', background: '#38bdf8', color: 'white', border: 'none', borderRadius: '14px', fontWeight: 'bold', width: '100%', maxWidth: '320px' }}>
+                  📄 Unduh Laporan PDF
                 </button>
               </div>
 
@@ -589,7 +633,7 @@ export default function AthletesPage() {
                     {atletPrestasi.map(p => (
                       <div key={p.id} style={{ background: 'rgba(34,197,94,0.1)', padding: '14px 16px', borderRadius: '12px', border: '1px solid #22c55e', fontSize: '14px' }}>
                         <strong>{p.JenisKejuaraan}</strong><br />
-                        <small>{p.Tanggal} • {p.katagori} •{p.Lokasi}</small><br />
+                        <small>{p.Tanggal} • {p.katagori} • {p.Lokasi}</small><br />
                         <span style={{ color: '#86efac', fontWeight: 'bold' }}>{p.Medali}</span>
                       </div>
                     ))}
@@ -597,40 +641,21 @@ export default function AthletesPage() {
                 </div>
               )}
 
-              {/* Chart  */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '40px' }}>
-                <div ref={lineRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px' }}>
+              {/* Chart Energy & Fatigue + Radar */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', marginBottom: '40px' }}>
+                <div ref={lineRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '20px', borderRadius: '16px', width: '100%' }}>
                   <h3>Tren Energy & Fatigue</h3>
-                  <div style={{ height: '320px' }}>
+                  <div style={{ height: '300px' }}>
                     {atletSessions.length > 0 ? <Line data={lineData} options={lineOptions} /> : <p>Belum ada data</p>}
                   </div>
                 </div>
-                <div ref={radarRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px' }}>
+
+                <div ref={radarRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '20px', borderRadius: '16px', width: '100%' }}>
                   <h3>8 Unsur Kebugaran Jasmani</h3>
                   <div style={{ height: '320px' }}>
                     {totalSessions > 0 ? <Radar data={radarData} options={radarOptions} /> : <p>Belum ada data</p>}
                   </div>
                 </div>
-              </div>
-
-              {/* Riwayat Latihan */}
-              <div style={{ marginBottom: '40px' }}>
-                <h3>Riwayat Latihan</h3>
-                {atletSessions.length === 0 ? (
-                  <p>Belum ada data latihan.</p>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-                    {atletSessions.map(s => (
-                      <div key={s.id} style={{ background: 'rgba(255,255,255,0.06)', padding: '12px', borderRadius: '10px', fontSize: '13px', lineHeight: '1.4' }}>
-                        <strong style={{ color: '#fb923c' }}>{s.Tanggal}</strong><br />
-                        <span style={{ color: '#e2e8f0' }}>{s.JenisSesi}</span><br />
-                        Grade: {s.Grade || '-'} | Energy: {s.EnergyLevel || '-'}<br />
-                        Fatigue: {s.Fatigue || '-'}
-                        {s.Catatan && <p style={{ color: '#94a3b8', marginTop: '6px', fontSize: '12px' }}>{s.Catatan.length > 60 ? s.Catatan.substring(0, 60) + '...' : s.Catatan}</p>}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Progres Panjat Tebing */}
@@ -690,6 +715,44 @@ export default function AthletesPage() {
                   </>
                 )}
               </div>
+
+              {/* Evaluasi Mingguan - Hanya 2 Minggu Terakhir */}
+              {weeklyEvaluation.length > 0 && (
+                <div style={{ marginTop: '40px' }}>
+                  <h3 style={{ color: '#a855f7', marginBottom: '16px' }}>📊 Evaluasi 2 Minggu Terakhir</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                    {weeklyEvaluation.map((evalWeek, i) => (
+                      <div key={i} style={{ 
+                        background: 'rgba(255,255,255,0.06)', 
+                        padding: '20px', 
+                        borderRadius: '16px',
+                        border: '1px solid rgba(168, 85, 247, 0.3)'
+                      }}>
+                        <h4 style={{ color: '#c084fc', marginBottom: '12px' }}>Minggu {evalWeek.minggu}</h4>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '14px' }}>
+                          <p><strong>Grade:</strong> <span style={{ color: '#a855f7' }}>{evalWeek.grade}</span></p>
+                          <p><strong>Volume:</strong> {evalWeek.volume}</p>
+                          <p><strong>Sends:</strong> {evalWeek.sends}</p>
+                          <p><strong>Finger Hang:</strong> {evalWeek.fingerHang}s</p>
+                          <p><strong>Pull-up:</strong> {evalWeek.pullUp}kg</p>
+                          <p><strong>Energy Avg:</strong> {evalWeek.energyAvg.toFixed(1)}/10</p>
+                        </div>
+
+                        {evalWeek.improvement !== 0 && (
+                          <p style={{ 
+                            marginTop: '12px', 
+                            color: evalWeek.improvement > 0 ? '#22c55e' : '#ef4444',
+                            fontWeight: 'bold'
+                          }}>
+                            {evalWeek.improvement > 0 ? '↑' : '↓'} Improvement: {evalWeek.improvement.toFixed(1)} grade
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Evaluasi & Jadwal */}
               <div style={{ marginTop: '40px' }}>
