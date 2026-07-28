@@ -28,6 +28,7 @@ import {
   Legend as RechartsLegend, 
   ResponsiveContainer 
 } from 'recharts';
+import { Ad } from 'lucide-react';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler, RadarController, RadialLinearScale);
 
@@ -42,6 +43,7 @@ type Atlet = {
   RiwayatPenyakit?: string;
   GolonganDarah: string;
   Foto?: string;
+  Nokiat: string;
   JenisKelamin?: string;
   Level?: string;
 };
@@ -386,6 +388,7 @@ export default function AthletesPage() {
     addLine("Tanggal Lahir", selectedAtlet.TanggalLahir);
     addLine("Golongan Darah", selectedAtlet.GolonganDarah);
     addLine("Alamat", selectedAtlet.Alamat);
+    addLine("No kiat", selectedAtlet.Nokiat);
     addLine("Riwayat Penyakit", selectedAtlet.RiwayatPenyakit || "Tidak ada");
     y += 10;
 
@@ -621,6 +624,7 @@ export default function AthletesPage() {
                   <p><strong>Tanggal Lahir:</strong> {selectedAtlet.TanggalLahir || '-'}</p>
                   <p><strong>Golongan Darah:</strong> {selectedAtlet.GolonganDarah}</p>
                   <p><strong>Alamat:</strong> {selectedAtlet.Alamat || '-'}</p>
+                  <p><strong>No kiat:</strong> {selectedAtlet.Nokiat || '-'}</p>
                   <p style={{ gridColumn: '1 / -1' }}><strong>Riwayat Penyakit:</strong> {selectedAtlet.RiwayatPenyakit || 'Tidak ada'}</p>
                 </div>
               </div>

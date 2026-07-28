@@ -31,6 +31,7 @@ type Atlet = {
   Foto: string;
   JenisKelamin?: string;
   Level?: string;
+  Nokiat : string;
 };
 
 type PrestasiAtlet = {
@@ -60,7 +61,7 @@ export default function AdminPage() {
 
   const [formAtlet, setFormAtlet] = useState<Partial<Atlet>>({
     Nama: '', TempatLahir: '', TanggalLahir: '', Alamat: '', RiwayatPenyakit: '', 
-    GolonganDarah: '', Foto: '', JenisKelamin: '', Level: ''
+    GolonganDarah: '', Foto: '', JenisKelamin: '', Level: '', Nokiat  : ''
   });
 
   const [editingCoach, setEditingCoach] = useState<Coach | null>(null);
@@ -180,6 +181,7 @@ export default function AdminPage() {
       GolonganDarah: formAtlet.GolonganDarah || '',
       Foto: formAtlet.Foto || '',
       JenisKelamin: formAtlet.JenisKelamin,
+      Nokiat: formAtlet.Nokiat || '',
       Level: formAtlet.Level
     };
 
@@ -311,7 +313,11 @@ export default function AdminPage() {
                   <select value={formAtlet.Level || ''} onChange={e => setFormAtlet({...formAtlet, Level: e.target.value})} style={inputStyle} required>
                     <option value="">Pilih Level</option>
                     <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
+                    <option value="intermeidate">Intermediate Training</option>
+                    <option value="Intermediate">Intermediate Kelas A</option>
+                    <option value="Intermediate">Intermediate Kelas B</option>
+                    <option value="Intermediate">Intermediate Kelas C</option>
+                    <option value="advanced">Advance Training </option>
                     <option value="Advanced">Advanced</option>
                   </select>
                   <input type="text" placeholder="Tempat Lahir" value={formAtlet.TempatLahir || ''} onChange={e => setFormAtlet({...formAtlet, TempatLahir: e.target.value})} style={inputStyle} required />
@@ -319,7 +325,7 @@ export default function AdminPage() {
                   <input type="text" placeholder="Alamat" value={formAtlet.Alamat || ''} onChange={e => setFormAtlet({...formAtlet, Alamat: e.target.value})} style={inputStyle} />
                   <input type="text" placeholder="Riwayat Penyakit" value={formAtlet.RiwayatPenyakit || ''} onChange={e => setFormAtlet({...formAtlet, RiwayatPenyakit: e.target.value})} style={inputStyle} />
                   <input type="text" placeholder="Golongan Darah" value={formAtlet.GolonganDarah || ''} onChange={e => setFormAtlet({...formAtlet, GolonganDarah: e.target.value})} style={inputStyle} />
-
+                  <input type="text" placeholder="No kiat" value={formAtlet.Nokiat || ''} onChange={e => setFormAtlet({...formAtlet, Nokiat: e.target.value})} style={inputStyle} />
                   <label style={{ display: 'block', margin: '15px 0 5px' }}>Upload Foto Atlet</label>
                   <input type="file" accept="image/*" onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -376,8 +382,8 @@ export default function AdminPage() {
                     const atletPrestasi = prestasiList.filter(p => p.NamaAtlet === a.Nama);
                     return (
                       <div key={`atlet-${a.id}`} style={listStyle}>
-                        <div>
-                          {a.Nama} ({a.Usia} th) - {a.GolonganDarah}
+                        <div>$
+                          {a.Nama} ({a.Usia} th) - {a.GolonganDarah} {a.Nokiat ? `- ${a.Nokiat}` : ''}
                           <br />
                           <span style={{ color: '#94a3b8', fontSize: '14px' }}>
                             {a.JenisKelamin} • {a.Level}
