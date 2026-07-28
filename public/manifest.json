@@ -3,15 +3,20 @@
   "short_name": "Cicapora",
   "description": "Monitoring Performa Atlet Sport Climbing",
   "start_url": "/",
-  "id": "/",
   "display": "standalone",
+  "display_override": ["standalone", "fullscreen"],
   "background_color": "#0a1428",
   "theme_color": "#f97316",
   "orientation": "portrait-primary",
-  "scope": "/",
   "icons": [
     {
-      "src": "/logo.png",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
