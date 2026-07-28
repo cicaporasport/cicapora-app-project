@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+{<meta name="apple-mobile-web-app-capable" content="yes" />}
 
 export const metadata: Metadata = {
   title: 'CICAPORA Sport Climbing',
