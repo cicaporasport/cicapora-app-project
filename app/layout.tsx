@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: 'CICAPORA Sport Climbing',
   description: 'Monitoring Performa Atlet Sport Climbing',
   icons: {
-    icon: '/icon-512.png',
+    icon: '/logo.png',
     shortcut: '/icon-192.png',
     apple: '/icon-192.png',
   },
