@@ -314,9 +314,9 @@ export default function AdminPage() {
                     <option value="">Pilih Level</option>
                     <option value="Beginner">Beginner</option>
                     <option value="intermeidate">Intermediate Training</option>
-                    <option value="Intermediate">Intermediate Kelas A</option>
-                    <option value="Intermediate">Intermediate Kelas B</option>
-                    <option value="Intermediate">Intermediate Kelas C</option>
+                    <option value="Intermediate kelas a">Intermediate Kelas A</option>
+                    <option value="Intermediate kelas b">Intermediate Kelas B</option>
+                    <option value="Intermediate kelas c">Intermediate Kelas C</option>
                     <option value="advanced">Advance Training </option>
                     <option value="Advanced">Advanced</option>
                   </select>

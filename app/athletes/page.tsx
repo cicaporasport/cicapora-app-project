@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Line, Radar } from 'react-chartjs-2';
+import { Line, Radar, Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
@@ -18,19 +19,9 @@ import {
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { supabase } from '@/lib/supabase';
-import { 
-  LineChart, 
-  Line as RechartsLine, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip as RechartsTooltip, 
-  Legend as RechartsLegend, 
-  ResponsiveContainer 
-} from 'recharts';
 import { Ad } from 'lucide-react';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler, RadarController, RadialLinearScale);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler, RadarController, RadialLinearScale);
 
 // ==================== TIPE DATA ====================
 type Atlet = {
@@ -123,6 +114,7 @@ export default function AthletesPage() {
   const radarRef = useRef<HTMLDivElement>(null);
   const climbingRef = useRef<HTMLDivElement>(null);
   const strengthChartRef = useRef<HTMLDivElement>(null);
+  const combinedChartRef = useRef<HTMLDivElement>(null);
 
   const calculateAge = (tanggalLahir?: string): string => {
     if (!tanggalLahir) return '-';
@@ -137,7 +129,7 @@ export default function AthletesPage() {
     return `${years} tahun ${months} bulan`;
   };
 
-  // Load Data
+  // Load Data Awal
   useEffect(() => {
     const fetchAtlets = async () => {
       const { data } = await supabase.from('atlets').select('*').order('id');
@@ -172,6 +164,7 @@ export default function AthletesPage() {
     fetchClimbing();
   }, []);
 
+  // Refresh Climbing Data
   useEffect(() => {
     if (!selectedAtlet) return;
 
@@ -180,7 +173,9 @@ export default function AthletesPage() {
         .from('climbing_progress')
         .select('*')
         .eq('athlete_name', selectedAtlet.Nama);
+
       if (data) {
+        console.log(`Data climbing untuk ${selectedAtlet.Nama}:`, data);
         setClimbingData(prev => ({ ...prev, [selectedAtlet.Nama]: data }));
       }
     };
@@ -238,9 +233,8 @@ export default function AthletesPage() {
     ? [...(climbingData[selectedAtlet.Nama] || [])].sort((a, b) => a.minggu - b.minggu) 
     : [];
 
-  // Evaluasi Mingguan HANYA 2 MINGGU TERAKHIR
   const weeklyEvaluation = atletClimbing
-    .slice(-2) // Ambil hanya 2 minggu terakhir
+    .slice(-2)
     .map((week, index, arr) => {
       const prevWeek = arr[index - 1];
       return {
@@ -251,7 +245,7 @@ export default function AthletesPage() {
         sends: week.sends,
         fingerHang: week.fingerHang20mm,
         pullUp: week.weightedPullupKg,
-        energyAvg: 7.5, // bisa dihitung lebih akurat nanti
+        energyAvg: 7.5,
         improvement: prevWeek ? (week.gradeNumeric - prevWeek.gradeNumeric) : 0
       };
     });
@@ -273,7 +267,7 @@ export default function AthletesPage() {
       y: { min: 0, max: 10, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
       x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
     },
-  } as const;
+  };
 
   const radarData = {
     labels: fitnessKeys,
@@ -293,7 +287,7 @@ export default function AthletesPage() {
       r: { min: 0, max: 10, grid: { color: 'rgba(255,255,255,0.1)' }, pointLabels: { color: '#cbd5e1' }, ticks: { color: '#94a3b8' } } 
     },
     plugins: { legend: { labels: { color: '#cbd5e1' } } },
-  } as const;
+  };
 
   const gradeChartData = {
     labels: atletClimbing.map(c => `Minggu ${c.minggu}`),
@@ -316,7 +310,7 @@ export default function AthletesPage() {
       y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
       x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
     },
-  } as const;
+  };
 
   const strengthChartData = {
     labels: atletClimbing.map(c => `Minggu ${c.minggu}`),
@@ -334,7 +328,64 @@ export default function AthletesPage() {
       y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
       x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
     },
-  } as const;
+  };
+
+  // Chart Gabungan (Chart.js)
+  const combinedChartData = {
+    labels: atletClimbing.map(c => `Minggu ${c.minggu}`),
+    datasets: [
+      {
+        label: 'Grade Maksimal',
+        data: atletClimbing.map(c => Number(c.gradeNumeric) || 0),
+        backgroundColor: '#3b82f6',
+        borderColor: '#3b82f6',
+        borderWidth: 2,
+        yAxisID: 'y'
+      },
+      {
+        label: 'Volume Climbing',
+        data: atletClimbing.map(c => Number(c.volumeClimbing) || 0),
+        backgroundColor: '#22c55e',
+        borderColor: '#22c55e',
+        borderWidth: 1,
+        yAxisID: 'y1'
+      },
+      {
+        label: 'Total Sends',
+        data: atletClimbing.map(c => Number(c.sends) || 0),
+        backgroundColor: '#eab308',
+        borderColor: '#eab308',
+        borderWidth: 1,
+        yAxisID: 'y1'
+      }
+    ]
+  };
+
+  const combinedChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { 
+      legend: { labels: { color: '#cbd5e1' } } 
+    },
+    scales: {
+      y: { 
+        type: 'linear' as const,
+        position: 'left' as const,
+        grid: { color: 'rgba(255,255,255,0.1)' },
+        ticks: { color: '#94a3b8' }
+      },
+      y1: { 
+        type: 'linear' as const,
+        position: 'right' as const,
+        grid: { drawOnChartArea: false },
+        ticks: { color: '#94a3b8' }
+      },
+      x: { 
+        grid: { color: 'rgba(255,255,255,0.1)' },
+        ticks: { color: '#94a3b8' }
+      }
+    }
+  };
 
   const captureWithDelay = async (ref: React.RefObject<HTMLDivElement | null>) => {
     if (!ref.current) return null;
@@ -486,15 +537,9 @@ export default function AthletesPage() {
       });
       y += 8;
 
-      if (climbingRef.current) {
+      if (combinedChartRef.current) {
         if (y > 170) { doc.addPage(); y = 30; }
-        const canvas = await captureWithDelay(climbingRef);
-        if (canvas) { doc.addImage(canvas.toDataURL('image/png'), 'PNG', 20, y, 165, 75); y += 82; }
-      }
-
-      if (strengthChartRef.current) {
-        if (y > 170) { doc.addPage(); y = 30; }
-        const canvas = await captureWithDelay(strengthChartRef);
+        const canvas = await captureWithDelay(combinedChartRef);
         if (canvas) { doc.addImage(canvas.toDataURL('image/png'), 'PNG', 20, y, 165, 75); y += 82; }
       }
     }
@@ -552,46 +597,21 @@ export default function AthletesPage() {
         <h1 style={{ fontSize: '42px', fontWeight: 'bold', textAlign: 'center', marginBottom: '40px' }}>Area Atlet</h1>
 
         {!selectedAtlet && (
-          <>
-            <style jsx>{`
-              .atlet-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                gap: 18px;
-                padding: 0 10px;
-              }
-              @media (max-width: 768px) {
-                .atlet-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 12px; }
-              }
-              .atlet-card {
-                background: rgba(255,255,255,0.08);
-                border: 1px solid rgba(56,189,248,0.3);
-                border-radius: 16px;
-                overflow: hidden;
-                cursor: pointer;
-                transition: all 0.3s;
-              }
-              .atlet-card:hover { transform: scale(1.05); }
-              .atlet-photo { width: 100%; height: 145px; object-fit: cover; }
-              @media (max-width: 768px) { .atlet-photo { height: 110px; } }
-            `}</style>
-
-            <div className="atlet-grid">
-              {atlets.map((atlet, index) => (
-                <div key={index} className="atlet-card" onClick={() => setSelectedAtlet(atlet)}>
-                  {atlet.Foto ? (
-                    <img src={atlet.Foto} alt={atlet.Nama} className="atlet-photo" />
-                  ) : (
-                    <div style={{ height: '110px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Photo</div>
-                  )}
-                  <div style={{ padding: '12px', textAlign: 'center' }}>
-                    <h3 style={{ margin: '0 0 6px 0', fontSize: '15.5px', fontWeight: 'bold' }}>{atlet.Nama}</h3>
-                    <p style={{ color: '#94a3b8', margin: 0, fontSize: '13px' }}>{calculateAge(atlet.TanggalLahir)}</p>
-                  </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
+            {atlets.map((atlet, index) => (
+              <div key={index} onClick={() => setSelectedAtlet(atlet)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer' }}>
+                {atlet.Foto ? (
+                  <img src={atlet.Foto} alt={atlet.Nama} style={{ width: '100%', height: '240px', objectFit: 'cover', objectPosition: 'center top',}} />
+                ) : (
+                  <div style={{ height: '240px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Photo</div>
+                )}
+                <div style={{ padding: '12px', textAlign: 'center' }}>
+                  <h3 style={{ margin: '0 0 6px 0', fontSize: '15.5px', fontWeight: 'bold' }}>{atlet.Nama}</h3>
+                  <p style={{ color: '#94a3b8', margin: 0, fontSize: '13px' }}>{calculateAge(atlet.TanggalLahir)}</p>
                 </div>
-              ))}
-            </div>
-          </>
+              </div>
+            ))}
+          </div>
         )}
 
         {selectedAtlet && (
@@ -602,7 +622,7 @@ export default function AthletesPage() {
 
             <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '24px', padding: '30px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', marginBottom: '30px' }}>
-                {selectedAtlet.Foto && <img src={selectedAtlet.Foto} alt="" style={{ width: '100%', maxWidth: '280px', borderRadius: '20px' }} />}
+                {selectedAtlet.Foto && <img src={selectedAtlet.Foto} alt="" style={{ width: '100%', maxWidth: '280px', borderRadius: '20px', objectFit: 'cover', objectPosition: 'center top' }} />}
                 <div style={{ textAlign: 'center' }}>
                   <h1 style={{ fontSize: '32px', margin: '10px 0' }}>{selectedAtlet.Nama}</h1>
                   <p style={{ color: '#94a3b8', fontSize: '18px' }}>{calculateAge(selectedAtlet.TanggalLahir)} • {selectedAtlet.GolonganDarah}</p>
@@ -703,8 +723,16 @@ export default function AthletesPage() {
                       </table>
                     </div>
 
+                    {/* Chart Gabungan */}
+                    <div ref={combinedChartRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
+                      <h4 style={{ marginBottom: '16px' }}>📈 Progress Grade Maksimal & Volume</h4>
+                      <div style={{ height: '380px' }}>
+                        <Bar data={combinedChartData} options={combinedChartOptions} />
+                      </div>
+                    </div>
+
                     <div ref={climbingRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
-                      <h4>Progres Grade Maksimal</h4>
+                      <h4>Progres Grade Maksimal (Detail)</h4>
                       <div style={{ height: '320px' }}>
                         <Line data={gradeChartData} options={gradeOptions} />
                       </div>
@@ -720,7 +748,7 @@ export default function AthletesPage() {
                 )}
               </div>
 
-              {/* Evaluasi Mingguan - Hanya 2 Minggu Terakhir */}
+              {/* Evaluasi Mingguan */}
               {weeklyEvaluation.length > 0 && (
                 <div style={{ marginTop: '40px' }}>
                   <h3 style={{ color: '#a855f7', marginBottom: '16px' }}>📊 Evaluasi 2 Minggu Terakhir</h3>
@@ -733,7 +761,6 @@ export default function AthletesPage() {
                         border: '1px solid rgba(168, 85, 247, 0.3)'
                       }}>
                         <h4 style={{ color: '#c084fc', marginBottom: '12px' }}>Minggu {evalWeek.minggu}</h4>
-                        
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '14px' }}>
                           <p><strong>Grade:</strong> <span style={{ color: '#a855f7' }}>{evalWeek.grade}</span></p>
                           <p><strong>Volume:</strong> {evalWeek.volume}</p>
@@ -742,13 +769,8 @@ export default function AthletesPage() {
                           <p><strong>Pull-up:</strong> {evalWeek.pullUp}kg</p>
                           <p><strong>Energy Avg:</strong> {evalWeek.energyAvg.toFixed(1)}/10</p>
                         </div>
-
                         {evalWeek.improvement !== 0 && (
-                          <p style={{ 
-                            marginTop: '12px', 
-                            color: evalWeek.improvement > 0 ? '#22c55e' : '#ef4444',
-                            fontWeight: 'bold'
-                          }}>
+                          <p style={{ marginTop: '12px', color: evalWeek.improvement > 0 ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>
                             {evalWeek.improvement > 0 ? '↑' : '↓'} Improvement: {evalWeek.improvement.toFixed(1)} grade
                           </p>
                         )}
@@ -758,26 +780,9 @@ export default function AthletesPage() {
                 </div>
               )}
 
-              {/* Evaluasi & Jadwal */}
+              {/* Jadwal Latihan Mendatang */}
               <div style={{ marginTop: '40px' }}>
-                <h3 style={{ color: '#eab308' }}>📊 Evaluasi & Jadwal Latihan Mendatang</h3>
-
-                {atletClimbing.length > 0 && (
-                  <div style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
-                    <h4>Progress Climbing (Recharts)</h4>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={atletClimbing}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="minggu" />
-                        <YAxis />
-                        <RechartsTooltip />
-                        <RechartsLegend />
-                        <RechartsLine type="monotone" dataKey="gradeNumeric" stroke="#3b82f6" name="Grade" />
-                        <RechartsLine type="monotone" dataKey="volumeClimbing" stroke="#22c55e" name="Volume" />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
+                <h3 style={{ color: '#eab308' }}>📊 Jadwal Latihan Mendatang</h3>
 
                 <div style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px' }}>
                   <h4>Jadwal Latihan Mendatang</h4>
