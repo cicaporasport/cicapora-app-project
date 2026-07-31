@@ -71,17 +71,17 @@ export default function Home() {
         borderBottom: '1px solid rgba(255,255,255,0.1)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <img src="/logo.png" alt="Cicapora" style={{ maxWidth: '180px', height: 'auto' }} />
+          <img src="/logo.png" alt="Cicapora" style={{ maxWidth: '90px', height: 'auto' }} />
           <div>
-            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold' }}>CICAPORA</h1>
-            <p style={{ margin: 0, fontSize: '14px', color: '#fb923c' }}>SPORT CLIMBING</p>
+            <h1 style={{ margin: 0, fontSize: '50px', fontWeight: 'bold' }}>CICAPORA</h1>
+            <p style={{ margin: 0, fontSize: '35px', color: '#fb923c' }}>SPORT CLIMBING</p>
           </div>
         </div>
 
         <Link href="/admin">
           <div style={{
             background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(168,85,247,0.4)',
+            border: '1px solid rgba(255, 255, 255, 0.4)',
             borderRadius: '16px',
             padding: '12px 24px',
             display: 'flex',
@@ -95,7 +95,6 @@ export default function Home() {
             <div style={{ fontSize: '32px' }}>⚙️</div>
             <div>
               <h4 style={{ margin: '0 0 4px 0', fontSize: '18px' }}>ADMIN</h4>
-              <p style={{ margin: 0, color: '#c084fc' }}>Super Admin</p>
             </div>
           </div>
         </Link>
@@ -105,7 +104,7 @@ export default function Home() {
         {/* HERO SECTION - tetap sama */}
         <div style={{ textAlign: 'center', marginBottom: '80px' }}>
           <h2 style={{ fontSize: '52px', fontWeight: 'bold', marginBottom: '16px' }}>
-            CICAPORA <span style={{ color: '#fb923c' }}>SPORT CLIMBING</span>
+            CICAPORA <span style={{ color: '#3cf1fb' }}>SPORT CLIMBING</span>
           </h2>
           <p style={{ fontSize: '22px', color: '#94a3b8' }}>
            aplikasi Monitoring Performa Atlet
