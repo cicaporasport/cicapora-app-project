@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   description: 'Monitoring Performa Atlet Sport Climbing',
   icons: {
     icon: '/logo.png',
-    shortcut: '/icon-192.png',
-    apple: '/icon-192.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
   },
   manifest: '/manifest.json',
   themeColor: '#f97316',
