@@ -111,44 +111,153 @@ export default function Home() {
           </p>
         </div>
 
-        {/* CARD PELATIH & ATLET - tetap sama persis */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '30px', marginBottom: '100px' }}>
-          <div style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(251,146,60,0.4)', borderRadius: '24px', padding: '50px 40px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '30px' }}>
-              <div style={{ fontSize: '60px' }}>👨‍🏫</div>
-              <div>
-                <h3 style={{ fontSize: '32px', margin: '0 0 8px 0' }}>PELATIH</h3>
-                <p style={{ color: '#fb923c' }}> Coach Area</p>
-              </div>
-            </div>
-            <p style={{ fontSize: '18px', lineHeight: '1.6', color: '#cbd5e1', marginBottom: '40px' }}>
-              program latihan.
-            </p>
-            <Link href="/coach">
-              <button style={{ width: '100%', padding: '24px', fontSize: '20px', fontWeight: 'bold', background: '#f97316', color: 'white', border: 'none', borderRadius: '16px', cursor: 'pointer' }}>
-                MASUK SEBAGAI PELATIH →
-              </button>
-            </Link>
-          </div>
+      {/* CARD PELATIH & ATLET */}
+<div style={{ 
+  display: 'grid', 
+  gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', 
+  gap: '30px', 
+  marginBottom: '100px' 
+}}>
 
-          <div style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(56,189,248,0.4)', borderRadius: '24px', padding: '50px 40px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '30px' }}>
-              <div style={{ fontSize: '60px' }}>🏋️</div>
-              <div>
-                <h3 style={{ fontSize: '32px', margin: '0 0 8px 0' }}>ATLET</h3>
-                <p style={{ color: '#38bdf8' }}> Athlete Area</p>
-              </div>
-            </div>
-            <p style={{ fontSize: '18px', lineHeight: '1.6', color: '#cbd5e1', marginBottom: '40px' }}>
-              member cicapora . report performance.
-            </p>
-            <Link href="/athletes">
-              <button style={{ width: '100%', padding: '24px', fontSize: '20px', fontWeight: 'bold', background: '#38bdf8', color: 'white', border: 'none', borderRadius: '16px', cursor: 'pointer' }}>
-                MASUK SEBAGAI ATLET →
-              </button>
-            </Link>
-          </div>
+  {/* ========== CARD ATLET ========== */}
+  <div style={{ 
+    background: 'rgba(255,255,255,0.07)', 
+    border: '1px solid rgba(56,189,248,0.35)', 
+    borderRadius: '24px', 
+    padding: '48px 40px',
+    position: 'relative',
+    overflow: 'hidden',
+    boxShadow: '0 0 40px rgba(56,189,248,0.08)'
+  }}>
+    {/* Siluet Pemanjat - BESAR */}
+    <div style={{
+      position: 'absolute',
+      right: '-30px',
+      bottom: '-40px',
+      fontSize: '260px',
+      opacity: 0.11,
+      color: '#38bdf8',
+      transform: 'rotate(-12deg)',
+      pointerEvents: 'none',
+      userSelect: 'none',
+      lineHeight: 1,
+      zIndex: 1
+    }}>
+      🧗
+    </div>
+
+    <div style={{ position: 'relative', zIndex: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '18px', marginBottom: '28px' }}>
+        <div style={{ 
+          fontSize: '36px',
+          background: 'rgba(56,189,248,0.18)',
+          width: '64px',
+          height: '64px',
+          borderRadius: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          🏋️
         </div>
+        <div>
+          <h3 style={{ fontSize: '30px', margin: '0 0 6px 0', fontWeight: '700' }}>ATLET</h3>
+          <p style={{ color: '#38bdf8', margin: 0, fontSize: '15px' }}>Athlete Area</p>
+        </div>
+      </div>
+
+      <p style={{ fontSize: '17px', lineHeight: '1.6', color: '#94a3b8', marginBottom: '36px' }}>
+        member cicapora . report performance.
+      </p>
+
+      <Link href="/athletes">
+        <button style={{ 
+          width: '100%', 
+          padding: '20px', 
+          fontSize: '18px', 
+          fontWeight: '700', 
+          background: '#38bdf8', 
+          color: 'white', 
+          border: 'none', 
+          borderRadius: '14px', 
+          cursor: 'pointer',
+        }}>
+          MASUK SEBAGAI ATLET →
+        </button>
+      </Link>
+    </div>
+  </div>
+
+  {/* ========== CARD PELATIH ========== */}
+  <div style={{ 
+    background: 'rgba(255,255,255,0.07)', 
+    border: '1px solid rgba(251,146,60,0.35)', 
+    borderRadius: '24px', 
+    padding: '48px 40px',
+    position: 'relative',
+    overflow: 'hidden',
+    boxShadow: '0 0 40px rgba(251,146,60,0.08)'
+  }}>
+    {/* Siluet Pelatih - BESAR */}
+    <div style={{
+      position: 'absolute',
+      right: '-25px',
+      bottom: '-35px',
+      fontSize: '250px',
+      opacity: 0.12,
+      color: '#fb923c',
+      transform: 'rotate(8deg)',
+      pointerEvents: 'none',
+      userSelect: 'none',
+      lineHeight: 1,
+      zIndex: 1
+    }}>
+      👨‍🏫
+    </div>
+
+    <div style={{ position: 'relative', zIndex: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '18px', marginBottom: '28px' }}>
+        <div style={{ 
+          fontSize: '36px',
+          background: 'rgba(251,146,60,0.18)',
+          width: '64px',
+          height: '64px',
+          borderRadius: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          👨‍🏫
+        </div>
+        <div>
+          <h3 style={{ fontSize: '30px', margin: '0 0 6px 0', fontWeight: '700' }}>PELATIH</h3>
+          <p style={{ color: '#fb923c', margin: 0, fontSize: '15px' }}>Coach Area</p>
+        </div>
+      </div>
+
+      <p style={{ fontSize: '17px', lineHeight: '1.6', color: '#94a3b8', marginBottom: '36px' }}>
+        program latihan.
+      </p>
+
+      <Link href="/coach">
+        <button style={{ 
+          width: '100%', 
+          padding: '20px', 
+          fontSize: '18px', 
+          fontWeight: '700', 
+          background: '#f97316', 
+          color: 'white', 
+          border: 'none', 
+          borderRadius: '14px', 
+          cursor: 'pointer',
+        }}>
+          MASUK SEBAGAI PELATIH →
+        </button>
+      </Link>
+    </div>
+  </div>
+
+</div>
 
         {/* DAFTAR TIM PELATIH */}
         <div>
