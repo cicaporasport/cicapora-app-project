@@ -19,9 +19,20 @@ import {
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { supabase } from '@/lib/supabase';
-import { Ad } from 'lucide-react';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler, RadarController, RadialLinearScale);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+  RadarController,
+  RadialLinearScale
+);
 
 // ==================== TIPE DATA ====================
 type Atlet = {
@@ -48,6 +59,7 @@ type TrainingSession = {
   EnergyLevel?: string;
   Fatigue?: string;
   Catatan?: string;
+  Durasi?: string;
   Kekuatan?: string;
   DayaTahan?: string;
   DayaLedak?: string;
@@ -175,7 +187,6 @@ export default function AthletesPage() {
         .eq('athlete_name', selectedAtlet.Nama);
 
       if (data) {
-        console.log(`Data climbing untuk ${selectedAtlet.Nama}:`, data);
         setClimbingData(prev => ({ ...prev, [selectedAtlet.Nama]: data }));
       }
     };
@@ -215,22 +226,22 @@ export default function AthletesPage() {
   const atletPrestasi = prestasiList.filter(p => selectedAtlet && p.NamaAtlet === selectedAtlet.Nama);
 
   const totalSessions = atletSessions.length;
-  const avgEnergy = totalSessions > 0 
-    ? (atletSessions.reduce((sum, s) => sum + parseInt(s.EnergyLevel || '0'), 0) / totalSessions).toFixed(1) 
+  const avgEnergy = totalSessions > 0
+    ? (atletSessions.reduce((sum, s) => sum + parseInt(s.EnergyLevel || '0'), 0) / totalSessions).toFixed(1)
     : '0';
-  const avgFatigue = totalSessions > 0 
-    ? (atletSessions.reduce((sum, s) => sum + parseInt(s.Fatigue || '0'), 0) / totalSessions).toFixed(1) 
+  const avgFatigue = totalSessions > 0
+    ? (atletSessions.reduce((sum, s) => sum + parseInt(s.Fatigue || '0'), 0) / totalSessions).toFixed(1)
     : '0';
 
-  const fitnessKeys = ['Kekuatan','DayaTahan','DayaLedak','Kecepatan','Kelentukan','Keseimbangan','Koordinasi','Ketepatan'];
+  const fitnessKeys = ['Kekuatan', 'DayaTahan', 'DayaLedak', 'Kecepatan', 'Kelentukan', 'Keseimbangan', 'Koordinasi', 'Ketepatan'];
 
   const fitnessAverages = fitnessKeys.map(key => {
     const values = atletSessions.map(s => parseInt((s as any)[key] || '0')).filter(v => v > 0);
     return values.length > 0 ? parseFloat((values.reduce((a, b) => a + b, 0) / values.length).toFixed(1)) : 0;
   });
 
-  const atletClimbing = selectedAtlet 
-    ? [...(climbingData[selectedAtlet.Nama] || [])].sort((a, b) => a.minggu - b.minggu) 
+  const atletClimbing = selectedAtlet
+    ? [...(climbingData[selectedAtlet.Nama] || [])].sort((a, b) => a.minggu - b.minggu)
     : [];
 
   const weeklyEvaluation = atletClimbing
@@ -250,7 +261,108 @@ export default function AthletesPage() {
       };
     });
 
-  // Chart Data
+  // ==================== STATISTIK BARU ====================
+  const gradeToNumber = (grade: string) => {
+    if (!grade) return 0;
+    const match = grade.match(/(\d)([a-cA-C]?)/);
+    if (!match) return 0;
+    const num = parseInt(match[1]);
+    const letter = (match[2] || 'a').toLowerCase();
+    return num + (letter === 'a' ? 0 : letter === 'b' ? 0.3 : 0.6);
+  };
+
+  const totalSesi = atletSessions.length;
+
+  const bestGrade = atletSessions.length > 0
+    ? atletSessions
+        .map(s => s.Grade)
+        .filter(Boolean)
+        .sort((a, b) => gradeToNumber(a || '') - gradeToNumber(b || ''))
+        .pop() || '-'
+    : '-';
+
+  const rataRataGrade = atletSessions.length > 0
+    ? (
+        atletSessions
+          .map(s => gradeToNumber(s.Grade || ''))
+          .filter(n => n > 0)
+          .reduce((a, b) => a + b, 0) /
+        (atletSessions.filter(s => s.Grade).length || 1)
+      ).toFixed(1)
+    : '0';
+
+  const sekarang = new Date();
+  const sesiBulanIni = atletSessions.filter(s => {
+    const tgl = new Date(s.Tanggal);
+    return tgl.getMonth() === sekarang.getMonth() && tgl.getFullYear() === sekarang.getFullYear();
+  }).length;
+
+  const totalMenit = atletSessions.reduce((sum, s) => {
+    const durasi = parseInt(s.Durasi || '0');
+    return sum + (isNaN(durasi) ? 0 : durasi);
+  }, 0);
+  const totalJam = (totalMenit / 60).toFixed(1) + 'h';
+
+  const highGradeCount = atletSessions.filter(s => gradeToNumber(s.Grade || '') >= 6.5).length;
+  const highGradeRate = totalSesi > 0 ? Math.round((highGradeCount / totalSesi) * 100) + '%' : '0%';
+
+  // ==================== GRAFIK KEMAJUAN BARU ====================
+  const progressGradeData = {
+    labels: atletSessions.map(s => {
+      const d = new Date(s.Tanggal);
+      return d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+    }),
+    datasets: [{
+      label: 'Grade',
+      data: atletSessions.map(s => gradeToNumber(s.Grade || '')),
+      borderColor: '#ef4444',
+      backgroundColor: 'rgba(239, 68, 68, 0.15)',
+      borderWidth: 3,
+      tension: 0.4,
+      fill: true,
+      pointBackgroundColor: '#ef4444',
+      pointRadius: 5,
+    }],
+  };
+
+  const progressGradeOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: '#94a3b8' } },
+      x: { grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: '#94a3b8' } },
+    },
+  } as const;
+
+  const monthlySessions: Record<string, number> = {};
+  atletSessions.forEach(s => {
+    const d = new Date(s.Tanggal);
+    const key = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+    monthlySessions[key] = (monthlySessions[key] || 0) + 1;
+  });
+
+  const sessionPerMonthData = {
+    labels: Object.keys(monthlySessions),
+    datasets: [{
+      label: 'Jumlah Sesi',
+      data: Object.values(monthlySessions),
+      backgroundColor: '#ef4444',
+      borderRadius: 8,
+    }],
+  };
+
+  const sessionPerMonthOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
+      x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+    },
+  } as const;
+
+  // Chart Data Lama
   const lineData = {
     labels: atletSessions.map(s => new Date(s.Tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })),
     datasets: [
@@ -267,27 +379,27 @@ export default function AthletesPage() {
       y: { min: 0, max: 10, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
       x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
     },
-  };
+  } as const;
 
   const radarData = {
     labels: fitnessKeys,
-    datasets: [{ 
-      label: 'Rata-rata Performa', 
-      data: fitnessAverages, 
-      borderColor: '#fb923c', 
-      backgroundColor: 'rgba(251,146,60,0.25)', 
-      borderWidth: 2 
+    datasets: [{
+      label: 'Rata-rata Performa',
+      data: fitnessAverages,
+      borderColor: '#fb923c',
+      backgroundColor: 'rgba(251,146,60,0.25)',
+      borderWidth: 2
     }],
   };
 
   const radarOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    scales: { 
-      r: { min: 0, max: 10, grid: { color: 'rgba(255,255,255,0.1)' }, pointLabels: { color: '#cbd5e1' }, ticks: { color: '#94a3b8' } } 
+    scales: {
+      r: { min: 0, max: 10, grid: { color: 'rgba(255,255,255,0.1)' }, pointLabels: { color: '#cbd5e1' }, ticks: { color: '#94a3b8' } }
     },
     plugins: { legend: { labels: { color: '#cbd5e1' } } },
-  };
+  } as const;
 
   const gradeChartData = {
     labels: atletClimbing.map(c => `Minggu ${c.minggu}`),
@@ -310,7 +422,7 @@ export default function AthletesPage() {
       y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
       x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
     },
-  };
+  } as const;
 
   const strengthChartData = {
     labels: atletClimbing.map(c => `Minggu ${c.minggu}`),
@@ -328,9 +440,8 @@ export default function AthletesPage() {
       y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
       x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
     },
-  };
+  } as const;
 
-  // Chart Gabungan (Chart.js)
   const combinedChartData = {
     labels: atletClimbing.map(c => `Minggu ${c.minggu}`),
     datasets: [
@@ -364,23 +475,23 @@ export default function AthletesPage() {
   const combinedChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { 
-      legend: { labels: { color: '#cbd5e1' } } 
+    plugins: {
+      legend: { labels: { color: '#cbd5e1' } }
     },
     scales: {
-      y: { 
+      y: {
         type: 'linear' as const,
         position: 'left' as const,
         grid: { color: 'rgba(255,255,255,0.1)' },
         ticks: { color: '#94a3b8' }
       },
-      y1: { 
+      y1: {
         type: 'linear' as const,
         position: 'right' as const,
         grid: { drawOnChartArea: false },
         ticks: { color: '#94a3b8' }
       },
-      x: { 
+      x: {
         grid: { color: 'rgba(255,255,255,0.1)' },
         ticks: { color: '#94a3b8' }
       }
@@ -601,7 +712,7 @@ export default function AthletesPage() {
             {atlets.map((atlet, index) => (
               <div key={index} onClick={() => setSelectedAtlet(atlet)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer' }}>
                 {atlet.Foto ? (
-                  <img src={atlet.Foto} alt={atlet.Nama} style={{ width: '100%', height: '240px', objectFit: 'cover', objectPosition: 'center top',}} />
+                  <img src={atlet.Foto} alt={atlet.Nama} style={{ width: '100%', height: '240px', objectFit: 'cover', objectPosition: 'center top' }} />
                 ) : (
                   <div style={{ height: '240px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Photo</div>
                 )}
@@ -631,6 +742,40 @@ export default function AthletesPage() {
                   📄 Unduh Laporan PDF
                 </button>
               </div>
+
+              {/* ==================== 6 KARTU STATISTIK BARU ==================== */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: '14px',
+                marginBottom: '30px'
+              }}>
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{totalSesi}</div>
+                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Total Sesi</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{bestGrade}</div>
+                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Best Grade</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{rataRataGrade}</div>
+                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Rata-rata Grade</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{sesiBulanIni}</div>
+                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Sesi Bulan Ini</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{totalJam}</div>
+                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Total Jam Latihan</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{highGradeRate}</div>
+                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>High Grade Rate</div>
+                </div>
+              </div>
+
 
               {/* Biodata */}
               <div style={{ background: 'rgba(255,255,255,0.06)', padding: '28px', borderRadius: '16px', marginBottom: '30px' }}>
@@ -754,9 +899,9 @@ export default function AthletesPage() {
                   <h3 style={{ color: '#a855f7', marginBottom: '16px' }}>📊 Evaluasi 2 Minggu Terakhir</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
                     {weeklyEvaluation.map((evalWeek, i) => (
-                      <div key={i} style={{ 
-                        background: 'rgba(255,255,255,0.06)', 
-                        padding: '20px', 
+                      <div key={i} style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        padding: '20px',
                         borderRadius: '16px',
                         border: '1px solid rgba(168, 85, 247, 0.3)'
                       }}>
@@ -783,7 +928,6 @@ export default function AthletesPage() {
               {/* Jadwal Latihan Mendatang */}
               <div style={{ marginTop: '40px' }}>
                 <h3 style={{ color: '#eab308' }}>📊 Jadwal Latihan Mendatang</h3>
-
                 <div style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px' }}>
                   <h4>Jadwal Latihan Mendatang</h4>
                   {upcomingTrainings.length === 0 ? (

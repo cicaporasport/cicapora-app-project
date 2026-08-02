@@ -305,43 +305,53 @@ const savePrestasi = async (e: React.FormEvent) => {
   };
 
   // SAVE CLIMBING
-  const saveClimbingProgress = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedAtlet) return alert('Pilih Atlet terlebih dahulu!');
+  // SAVE CLIMBING
+const saveClimbingProgress = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!selectedAtlet) return alert('Pilih Atlet terlebih dahulu!');
 
-    const newWeek = {
-      athlete_name: selectedAtlet,
-      minggu: climbingForm.minggu || 1,
-      grade: climbingForm.grade || "6b",
-      gradeNumeric: climbingForm.gradeNumeric || " ",
-      sesiTotal: climbingForm.sesiTotal || " ",
-      sesiClimbing: climbingForm.sesiClimbing || " ",
-      sesiStrength: climbingForm.sesiStrength || " ",
-      sesiEnduranceMobility: climbingForm.sesiEnduranceMobility || " ",
-      volumeClimbing: climbingForm.volumeClimbing || " ",
-      sends: climbingForm.sends || " ",
-      fingerHang20mm: climbingForm.fingerHang20mm || " ",
-      weightedPullupKg: climbingForm.weightedPullupKg || " ",
-      corePlankSec: climbingForm.corePlankSec || " ",
-      enduranceArcMin: climbingForm.enduranceArcMin || " ",
-    };
-
-    const { error } = await supabase.from('climbing_progress').insert([newWeek]);
-
-    if (error) {
-      alert('Gagal simpan: ' + error.message);
-    } else {
-      alert(`Data Minggu ke-${newWeek.minggu} untuk ${selectedAtlet} berhasil disimpan!`);
-      fetchAllData();
-      setClimbingForm({
-        minggu: (climbingForm.minggu || 1) + 1,
-        grade: "6b", gradeNumeric: 6.5, sesiTotal: 0, sesiClimbing: 0,
-        sesiStrength: 0, sesiEnduranceMobility: 0, volumeClimbing: 0, sends: 0,
-        fingerHang20mm: 0, weightedPullupKg: 0, corePlankSec: 0, enduranceArcMin: 0,
-      });
-    }
+  const newWeek = {
+    athlete_name: selectedAtlet,
+    minggu: Number(climbingForm.minggu) || 1,
+    grade: climbingForm.grade || "6b",
+    gradeNumeric: Number(climbingForm.gradeNumeric) || 0,          // diganti dari " "
+    sesiTotal: Number(climbingForm.sesiTotal) || 0,                // diganti dari " "
+    sesiClimbing: Number(climbingForm.sesiClimbing) || 0,          // diganti dari " "
+    sesiStrength: Number(climbingForm.sesiStrength) || 0,          // diganti dari " "
+    sesiEnduranceMobility: Number(climbingForm.sesiEnduranceMobility) || 0,
+    volumeClimbing: Number(climbingForm.volumeClimbing) || 0,
+    sends: Number(climbingForm.sends) || 0,
+    fingerHang20mm: Number(climbingForm.fingerHang20mm) || 0,
+    weightedPullupKg: Number(climbingForm.weightedPullupKg) || 0,
+    corePlankSec: Number(climbingForm.corePlankSec) || 0,
+    enduranceArcMin: Number(climbingForm.enduranceArcMin) || 0,
   };
 
+  const { error } = await supabase.from('climbing_progress').insert([newWeek]);
+
+  if (error) {
+    alert('Gagal simpan: ' + error.message);
+    console.error(error);
+  } else {
+    alert(`Data Minggu ke-${newWeek.minggu} untuk ${selectedAtlet} berhasil disimpan!`);
+    fetchAllData();
+    setClimbingForm({
+      minggu: (Number(climbingForm.minggu) || 1) + 1,
+      grade: "6b",
+      gradeNumeric: 6.5,
+      sesiTotal: 0,
+      sesiClimbing: 0,
+      sesiStrength: 0,
+      sesiEnduranceMobility: 0,
+      volumeClimbing: 0,
+      sends: 0,
+      fingerHang20mm: 0,
+      weightedPullupKg: 0,
+      corePlankSec: 0,
+      enduranceArcMin: 0,
+    });
+  }
+};
   // SAVE UPCOMING
   const saveUpcomingTraining = async (e: React.FormEvent) => {
     e.preventDefault();
