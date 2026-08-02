@@ -121,6 +121,7 @@ export default function AthletesPage() {
   const [selectedAtlet, setSelectedAtlet] = useState<Atlet | null>(null);
   const [climbingData, setClimbingData] = useState<Record<string, ClimbingTrainingWeek[]>>({});
   const [upcomingTrainings, setUpcomingTrainings] = useState<UpcomingTraining[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const lineRef = useRef<HTMLDivElement>(null);
   const radarRef = useRef<HTMLDivElement>(null);
@@ -218,6 +219,10 @@ export default function AthletesPage() {
     fetchCertificates();
     fetchUpcoming();
   }, [selectedAtlet]);
+
+  const filteredAtlets = atlets.filter(atlet =>
+    atlet.Nama.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const atletSessions = allSessions
     .filter(s => selectedAtlet && s.NamaAtlet === selectedAtlet.Nama)
@@ -708,20 +713,100 @@ export default function AthletesPage() {
         <h1 style={{ fontSize: '42px', fontWeight: 'bold', textAlign: 'center', marginBottom: '40px' }}>Area Atlet</h1>
 
         {!selectedAtlet && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px' }}>
-            {atlets.map((atlet, index) => (
-              <div key={index} onClick={() => setSelectedAtlet(atlet)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '16px', overflow: 'hidden', cursor: 'pointer' }}>
-                {atlet.Foto ? (
-                  <img src={atlet.Foto} alt={atlet.Nama} style={{ width: '100%', height: '240px', objectFit: 'cover', objectPosition: 'center top' }} />
-                ) : (
-                  <div style={{ height: '240px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Photo</div>
-                )}
-                <div style={{ padding: '12px', textAlign: 'center' }}>
-                  <h3 style={{ margin: '0 0 6px 0', fontSize: '15.5px', fontWeight: 'bold' }}>{atlet.Nama}</h3>
-                  <p style={{ color: '#94a3b8', margin: 0, fontSize: '13px' }}>{calculateAge(atlet.TanggalLahir)}</p>
-                </div>
-              </div>
-            ))}
+          <div>
+            {/* Search Box */}
+            <div style={{ marginBottom: '30px', maxWidth: '500px', margin: '0 auto 30px' }}>
+              <input
+                type="text"
+                placeholder="🔍 Cari atlet berdasarkan nama..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '14px 20px',
+                  borderRadius: '14px',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'rgba(255,255,255,0.08)',
+                  color: 'white',
+                  fontSize: '16px',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            {/* Daftar Atlet */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+              gap: '18px' 
+            }}>
+              {filteredAtlets.length === 0 ? (
+                <p style={{ 
+                  gridColumn: '1 / -1', 
+                  textAlign: 'center', 
+                  color: '#94a3b8',
+                  padding: '40px 0'
+                }}>
+                  {searchTerm ? 'Tidak ada atlet yang cocok dengan pencarian.' : 'Belum ada data atlet.'}
+                </p>
+              ) : (
+                filteredAtlets.map((atlet) => (
+                  <div
+                    key={atlet.id}
+                    onClick={() => setSelectedAtlet(atlet)}
+                    style={{
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(56,189,248,0.3)',
+                      borderRadius: '16px',
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s, box-shadow 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    {atlet.Foto ? (
+                      <img
+                        src={atlet.Foto}
+                        alt={atlet.Nama}
+                        loading="lazy"
+                        style={{
+                          width: '100%',
+                          height: '240px',
+                          objectFit: 'cover',
+                          objectPosition: 'center top'
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        height: '240px',
+                        background: 'rgba(255,255,255,0.05)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#64748b'
+                      }}>
+                        No Photo
+                      </div>
+                    )}
+                    <div style={{ padding: '12px', textAlign: 'center' }}>
+                      <h3 style={{ margin: '0 0 6px 0', fontSize: '15.5px', fontWeight: 'bold' }}>
+                        {atlet.Nama}
+                      </h3>
+                      <p style={{ color: '#94a3b8', margin: 0, fontSize: '13px' }}>
+                        {calculateAge(atlet.TanggalLahir)}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
 
