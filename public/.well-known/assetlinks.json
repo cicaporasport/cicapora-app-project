@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "cicaporasc.apk",
+        "sha256_cert_fingerprints": ["02:C0:DA:94:7B:88:98:29:83:B8:AD:CB:E1:58:FE:7B:5C:79:5C:1A:9D:66:62:99:E8:C8:ED:3C:95:55:8A:6D"]
+      }
+    }]
