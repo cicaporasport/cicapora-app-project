@@ -1,17 +1,13 @@
 {
-  "name": "Cicapora App",
+  "name": "Cicapora",
   "short_name": "Cicapora",
-  "description": "Aplikasi Cicapora",
+  "description": "Aplikasi Monitoring Performa Atlet Cicapora",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
   "icons": [
-    {
-      "src": "/logo.png",
-      "sizes": "64x64",
-      "type": "image/png"
-    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
