@@ -811,74 +811,164 @@ export default function AthletesPage() {
         )}
 
         {selectedAtlet && (
-          <div>
-            <button onClick={() => setSelectedAtlet(null)} style={{ padding: '12px 24px', background: 'transparent', border: '1px solid #fb923c', color: '#fb923c', borderRadius: '12px', marginBottom: '30px' }}>
-              ← Kembali ke Daftar Atlet
-            </button>
+  <div>
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+      <button 
+        onClick={() => setSelectedAtlet(null)} 
+        style={{ 
+          padding: '8px 16px', 
+          background: 'transparent', 
+          border: '1px solid #fb923c', 
+          color: '#fb923c', 
+          borderRadius: '10px',
+          cursor: 'pointer'
+        }}
+      >
+        ← Kembali
+      </button>
+    </div>
 
-            <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '24px', padding: '30px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', marginBottom: '30px' }}>
-                {selectedAtlet.Foto && <img src={selectedAtlet.Foto} alt="" style={{ width: '100%', maxWidth: '280px', borderRadius: '20px', objectFit: 'cover', objectPosition: 'center top' }} />}
-                <div style={{ textAlign: 'center' }}>
-                  <h1 style={{ fontSize: '32px', margin: '10px 0' }}>{selectedAtlet.Nama}</h1>
-                  <p style={{ color: '#94a3b8', fontSize: '18px' }}>{calculateAge(selectedAtlet.TanggalLahir)} • {selectedAtlet.GolonganDarah}</p>
-                </div>
-                <button onClick={downloadPDF} style={{ padding: '14px 32px', background: '#38bdf8', color: 'white', border: 'none', borderRadius: '14px', fontWeight: 'bold', width: '100%', maxWidth: '320px' }}>
-                  📄 Unduh Laporan PDF
-                </button>
-              </div>
+    <div style={{ 
+      background: 'rgba(255,255,255,0.06)', 
+      borderRadius: '24px', 
+      padding: '28px',
+      border: '1px solid rgba(255,255,255,0.08)'
+    }}>
+      
+      {/* ===== HEADER ATLET (GAYA NANGGALA) ===== */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'flex-start', 
+        gap: '24px', 
+        marginBottom: '28px',
+        flexWrap: 'wrap'
+      }}>
+        {/* Avatar */}
+        <div style={{
+          width: '110px',
+          height: '110px',
+          borderRadius: '20px',
+          background: 'rgba(255,255,255,0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '48px',
+          overflow: 'hidden',
+          flexShrink: 0
+        }}>
+          {selectedAtlet.Foto ? (
+            <img 
+              src={selectedAtlet.Foto} 
+              alt={selectedAtlet.Nama}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <span>🏋️</span>
+          )}
+        </div>
 
-              {/* ==================== 6 KARTU STATISTIK BARU ==================== */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                gap: '14px',
-                marginBottom: '30px'
-              }}>
-                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{totalSesi}</div>
-                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Total Sesi</div>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{bestGrade}</div>
-                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Best Grade</div>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{rataRataGrade}</div>
-                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Rata-rata Grade</div>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{sesiBulanIni}</div>
-                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Sesi Bulan Ini</div>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{totalJam}</div>
-                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Total Jam Latihan</div>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{highGradeRate}</div>
-                  <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>High Grade Rate</div>
-                </div>
-              </div>
+        {/* Info Atlet */}
+        <div style={{ flex: 1, minWidth: '220px' }}>
+          <h1 style={{ 
+            fontSize: '32px', 
+            fontWeight: 'bold', 
+            margin: '0 0 6px 0',
+            color: 'white'
+          }}>
+            {selectedAtlet.Nama}
+          </h1>
 
+          <p style={{ 
+            color: '#f87171', 
+            fontSize: '15px', 
+            margin: '0 0 12px 0',
+            fontWeight: '500'
+          }}>
+            {selectedAtlet.Level || 'Atlet'} • {selectedAtlet.JenisKelamin || '-'}
+          </p>
 
-              {/* Biodata */}
-              <div style={{ background: 'rgba(255,255,255,0.06)', padding: '28px', borderRadius: '16px', marginBottom: '30px' }}>
-                <h3 style={{ marginBottom: '16px', color: '#fb923c' }}>Data Lengkap Atlet</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <p><strong>Nama:</strong> {selectedAtlet.Nama}</p>
-                  <p><strong>Usia:</strong> {calculateAge(selectedAtlet.TanggalLahir)}</p>
-                  <p><strong>Jenis Kelamin:</strong> {selectedAtlet.JenisKelamin || '-'}</p>
-                  <p><strong>Level:</strong> {selectedAtlet.Level || '-'}</p>
-                  <p><strong>Tempat Lahir:</strong> {selectedAtlet.TempatLahir || '-'}</p>
-                  <p><strong>Tanggal Lahir:</strong> {selectedAtlet.TanggalLahir || '-'}</p>
-                  <p><strong>Golongan Darah:</strong> {selectedAtlet.GolonganDarah}</p>
-                  <p><strong>Alamat:</strong> {selectedAtlet.Alamat || '-'}</p>
-                  <p><strong>No kiat:</strong> {selectedAtlet.Nokiat || '-'}</p>
-                  <p style={{ gridColumn: '1 / -1' }}><strong>Riwayat Penyakit:</strong> {selectedAtlet.RiwayatPenyakit || 'Tidak ada'}</p>
-                </div>
-              </div>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
+            <span style={{
+              background: 'rgba(248,113,113,0.15)',
+              color: '#f87171',
+              padding: '5px 14px',
+              borderRadius: '20px',
+              fontSize: '13px',
+              fontWeight: '500'
+            }}>
+              Umur: {calculateAge(selectedAtlet.TanggalLahir)}
+            </span>
+            <span style={{
+              background: 'rgba(56,189,248,0.15)',
+              color: '#38bdf8',
+              padding: '5px 14px',
+              borderRadius: '20px',
+              fontSize: '13px',
+              fontWeight: '500'
+            }}>
+              Data Real-time
+            </span>
+          </div>
 
+          {selectedAtlet.Level && (
+            <p style={{ color: '#94a3b8', margin: '8px 0 0 0', fontSize: '14px' }}>
+              {selectedAtlet.Level}
+            </p>
+          )}
+        </div>
+
+        {/* Tombol PDF */}
+        <div>
+          <button 
+            onClick={downloadPDF} 
+            style={{ 
+              padding: '12px 24px', 
+              background: '#38bdf8', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '12px', 
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            📄 Unduh Laporan PDF
+          </button>
+        </div>
+      </div>
+
+      {/* ===== 6 KARTU STATISTIK ===== */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: '14px',
+        marginBottom: '30px'
+      }}>
+        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{totalSesi}</div>
+          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Total Sesi</div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{bestGrade}</div>
+          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Best Grade</div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{rataRataGrade}</div>
+          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Rata-rata Grade</div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{sesiBulanIni}</div>
+          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Sesi Bulan Ini</div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{totalJam}</div>
+          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Total Jam Latihan</div>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{highGradeRate}</div>
+          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>High Grade Rate</div>
+        </div>
+      </div>
               {/* Prestasi */}
               {atletPrestasi.length > 0 && (
                 <div style={{ marginBottom: '30px' }}>
