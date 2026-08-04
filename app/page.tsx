@@ -167,7 +167,7 @@ export default function Home() {
       </div>
 
       <p style={{ fontSize: '17px', lineHeight: '1.6', color: '#94a3b8', marginBottom: '36px' }}>
-        member cicapora . report performance.
+        CICAPORA MEMBER . ATLET PERFORMANCE .
       </p>
 
       <Link href="/athletes">
@@ -236,7 +236,7 @@ export default function Home() {
       </div>
 
       <p style={{ fontSize: '17px', lineHeight: '1.6', color: '#94a3b8', marginBottom: '36px' }}>
-        program latihan.
+        PROGRAM .
       </p>
 
       <Link href="/coach">
@@ -407,6 +407,9 @@ export default function Home() {
                   {selectedCoach.lokasi && ` • ${selectedCoach.lokasi}`}
                 </p>
               )}
+               <div style={{ marginTop: '40px', color: '#64748b', fontSize: '14px' }}>
+          © 2026 CICAPORA SPORT CLIMBING
+        </div>
             </div>
           </div>
         </div>

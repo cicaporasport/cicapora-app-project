@@ -1,6 +1,6 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
-{<meta name="mobile-web-app-capable" content="yes" />}
+import StandaloneGuard from './components/StandaloneGuard';
 
 export const metadata: Metadata = {
   title: 'CICAPORA Sport Climbing',
@@ -11,7 +11,18 @@ export const metadata: Metadata = {
     apple: '/logo.png',
   },
   manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'CICAPORA',
+  },
+};
+
+export const viewport: Viewport = {
   themeColor: '#f97316',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -21,20 +32,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#f97316" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="mobile-web-app-status-bar-style" content="default" />
-      </head>
-      <body style={{
-        margin: 0,
-        padding: 0,
-        background: '#0a1428',
-        color: 'white',
-        fontFamily: 'Arial, sans-serif'
-      }}>
-        {children}
+      <body
+        style={{
+          margin: 0,
+          padding: 0,
+          background: '#0a1428',
+          color: 'white',
+          fontFamily: 'Arial, sans-serif',
+        }}
+      >
+        <StandaloneGuard>
+          {children}
+        </StandaloneGuard>
       </body>
     </html>
   );

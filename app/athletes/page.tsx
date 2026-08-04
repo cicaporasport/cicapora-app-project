@@ -122,6 +122,8 @@ export default function AthletesPage() {
   const [climbingData, setClimbingData] = useState<Record<string, ClimbingTrainingWeek[]>>({});
   const [upcomingTrainings, setUpcomingTrainings] = useState<UpcomingTraining[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loadingList, setLoadingList] = useState(true);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   const lineRef = useRef<HTMLDivElement>(null);
   const radarRef = useRef<HTMLDivElement>(null);
@@ -142,82 +144,83 @@ export default function AthletesPage() {
     return `${years} tahun ${months} bulan`;
   };
 
-  // Load Data Awal
+  // ==================== LOAD DATA LIST (RINGAN) ====================
   useEffect(() => {
     const fetchAtlets = async () => {
-      const { data } = await supabase.from('atlets').select('*').order('id');
-      if (data) setAtlets(data);
-    };
-
-    const fetchSessions = async () => {
-      const { data } = await supabase.from('coach_sessions').select('*');
-      if (data) setAllSessions(data);
-    };
-
-    const fetchPrestasi = async () => {
-      const { data } = await supabase.from('prestasi_atlet').select('*');
-      if (data) setPrestasiList(data);
-    };
-
-    const fetchClimbing = async () => {
-      const { data } = await supabase.from('climbing_progress').select('*');
-      if (data) {
-        const grouped: Record<string, ClimbingTrainingWeek[]> = {};
-        data.forEach((item: any) => {
-          if (!grouped[item.athlete_name]) grouped[item.athlete_name] = [];
-          grouped[item.athlete_name].push(item);
-        });
-        setClimbingData(grouped);
+      setLoadingList(true);
+      try {
+        const { data } = await supabase
+          .from('atlets')
+          .select('*')
+          .order('Nama');
+        if (data) setAtlets(data);
+      } catch (error) {
+        console.error('Gagal memuat data atlet:', error);
+      } finally {
+        setLoadingList(false);
       }
     };
 
     fetchAtlets();
-    fetchSessions();
-    fetchPrestasi();
-    fetchClimbing();
   }, []);
 
-  // Refresh Climbing Data
+  // ==================== LOAD DATA DETAIL (HANYA SAAT DIPILIH) ====================
   useEffect(() => {
     if (!selectedAtlet) return;
 
-    const refreshClimbing = async () => {
-      const { data } = await supabase
-        .from('climbing_progress')
-        .select('*')
-        .eq('athlete_name', selectedAtlet.Nama);
+    const fetchDetailData = async () => {
+      setLoadingDetail(true);
+      try {
+        // Ambil sessions
+        const { data: sessionsData } = await supabase
+          .from('coach_sessions')
+          .select('*')
+          .eq('NamaAtlet', selectedAtlet.Nama);
+        if (sessionsData) setAllSessions(sessionsData);
 
-      if (data) {
-        setClimbingData(prev => ({ ...prev, [selectedAtlet.Nama]: data }));
+        // Ambil prestasi
+        const { data: prestasiData } = await supabase
+          .from('prestasi_atlet')
+          .select('*')
+          .eq('NamaAtlet', selectedAtlet.Nama);
+        if (prestasiData) setPrestasiList(prestasiData);
+
+        // Ambil climbing
+        const { data: climbingRaw } = await supabase
+          .from('climbing_progress')
+          .select('*')
+          .eq('athlete_name', selectedAtlet.Nama);
+        if (climbingRaw) {
+          setClimbingData(prev => ({
+            ...prev,
+            [selectedAtlet.Nama]: climbingRaw
+          }));
+        }
+
+        // Ambil certificates
+        const { data: certData } = await supabase
+          .from('certificates')
+          .select('*')
+          .eq('athlete_name', selectedAtlet.Nama)
+          .order('uploaded_at', { ascending: false });
+        if (certData) setCertificates(certData || []);
+
+        // Ambil upcoming
+        const { data: upcomingData } = await supabase
+          .from('upcoming_training')
+          .select('*')
+          .eq('athlete_name', selectedAtlet.Nama)
+          .order('tanggal', { ascending: true });
+        if (upcomingData) setUpcomingTrainings(upcomingData);
+
+      } catch (error) {
+        console.error('Gagal memuat detail atlet:', error);
+      } finally {
+        setLoadingDetail(false);
       }
     };
 
-    refreshClimbing();
-  }, [selectedAtlet]);
-
-  useEffect(() => {
-    if (!selectedAtlet) return;
-
-    const fetchCertificates = async () => {
-      const { data } = await supabase
-        .from('certificates')
-        .select('*')
-        .eq('athlete_name', selectedAtlet.Nama)
-        .order('uploaded_at', { ascending: false });
-      if (data) setCertificates(data || []);
-    };
-
-    const fetchUpcoming = async () => {
-      const { data } = await supabase
-        .from('upcoming_training')
-        .select('*')
-        .eq('athlete_name', selectedAtlet.Nama)
-        .order('tanggal', { ascending: true });
-      if (data) setUpcomingTrainings(data);
-    };
-
-    fetchCertificates();
-    fetchUpcoming();
+    fetchDetailData();
   }, [selectedAtlet]);
 
   const filteredAtlets = atlets.filter(atlet =>
@@ -266,7 +269,7 @@ export default function AthletesPage() {
       };
     });
 
-  // ==================== STATISTIK BARU ====================
+  // ==================== STATISTIK ====================
   const gradeToNumber = (grade: string) => {
     if (!grade) return 0;
     const match = grade.match(/(\d)([a-cA-C]?)/);
@@ -311,63 +314,7 @@ export default function AthletesPage() {
   const highGradeCount = atletSessions.filter(s => gradeToNumber(s.Grade || '') >= 6.5).length;
   const highGradeRate = totalSesi > 0 ? Math.round((highGradeCount / totalSesi) * 100) + '%' : '0%';
 
-  // ==================== GRAFIK KEMAJUAN BARU ====================
-  const progressGradeData = {
-    labels: atletSessions.map(s => {
-      const d = new Date(s.Tanggal);
-      return d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
-    }),
-    datasets: [{
-      label: 'Grade',
-      data: atletSessions.map(s => gradeToNumber(s.Grade || '')),
-      borderColor: '#ef4444',
-      backgroundColor: 'rgba(239, 68, 68, 0.15)',
-      borderWidth: 3,
-      tension: 0.4,
-      fill: true,
-      pointBackgroundColor: '#ef4444',
-      pointRadius: 5,
-    }],
-  };
-
-  const progressGradeOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: '#94a3b8' } },
-      x: { grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: '#94a3b8' } },
-    },
-  } as const;
-
-  const monthlySessions: Record<string, number> = {};
-  atletSessions.forEach(s => {
-    const d = new Date(s.Tanggal);
-    const key = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
-    monthlySessions[key] = (monthlySessions[key] || 0) + 1;
-  });
-
-  const sessionPerMonthData = {
-    labels: Object.keys(monthlySessions),
-    datasets: [{
-      label: 'Jumlah Sesi',
-      data: Object.values(monthlySessions),
-      backgroundColor: '#ef4444',
-      borderRadius: 8,
-    }],
-  };
-
-  const sessionPerMonthOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: '#94a3b8', stepSize: 1 } },
-      x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
-    },
-  } as const;
-
-  // Chart Data Lama
+  // ==================== CHART DATA ====================
   const lineData = {
     labels: atletSessions.map(s => new Date(s.Tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })),
     datasets: [
@@ -734,417 +681,421 @@ export default function AthletesPage() {
               />
             </div>
 
-            {/* Daftar Atlet */}
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-              gap: '18px' 
-            }}>
-              {filteredAtlets.length === 0 ? (
-                <p style={{ 
-                  gridColumn: '1 / -1', 
-                  textAlign: 'center', 
-                  color: '#94a3b8',
-                  padding: '40px 0'
-                }}>
-                  {searchTerm ? 'Tidak ada atlet yang cocok dengan pencarian.' : 'Belum ada data atlet.'}
-                </p>
-              ) : (
-                filteredAtlets.map((atlet) => (
-                  <div
-                    key={atlet.id}
-                    onClick={() => setSelectedAtlet(atlet)}
-                    style={{
-                      background: 'rgba(255,255,255,0.08)',
-                      border: '1px solid rgba(56,189,248,0.3)',
-                      borderRadius: '16px',
-                      overflow: 'hidden',
-                      cursor: 'pointer',
-                      transition: 'transform 0.2s, box-shadow 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    {atlet.Foto ? (
-                      <img
-                        src={atlet.Foto}
-                        alt={atlet.Nama}
-                        loading="lazy"
-                        style={{
-                          width: '100%',
+            {/* Loading List */}
+            {loadingList ? (
+              <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+                <div style={{ fontSize: '40px', marginBottom: '16px' }}>⏳</div>
+                <p style={{ color: '#94a3b8', fontSize: '18px' }}>Memuat daftar atlet...</p>
+              </div>
+            ) : (
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                gap: '18px' 
+              }}>
+                {filteredAtlets.length === 0 ? (
+                  <p style={{ 
+                    gridColumn: '1 / -1', 
+                    textAlign: 'center', 
+                    color: '#94a3b8',
+                    padding: '40px 0'
+                  }}>
+                    {searchTerm ? 'Tidak ada atlet yang cocok dengan pencarian.' : 'Belum ada data atlet.'}
+                  </p>
+                ) : (
+                  filteredAtlets.map((atlet) => (
+                    <div
+                      key={atlet.id}
+                      onClick={() => setSelectedAtlet(atlet)}
+                      style={{
+                        background: 'rgba(255,255,255,0.08)',
+                        border: '1px solid rgba(56,189,248,0.3)',
+                        borderRadius: '16px',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s, box-shadow 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    >
+                      {atlet.Foto ? (
+                        <img
+                          src={atlet.Foto}
+                          alt={atlet.Nama}
+                          loading="lazy"
+                          style={{
+                            width: '100%',
+                            height: '240px',
+                            objectFit: 'cover',
+                            objectPosition: 'center top'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
                           height: '240px',
-                          objectFit: 'cover',
-                          objectPosition: 'center top'
-                        }}
-                      />
-                    ) : (
-                      <div style={{
-                        height: '240px',
-                        background: 'rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#64748b'
-                      }}>
-                        No Photo
+                          background: 'rgba(255,255,255,0.05)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#64748b'
+                        }}>
+                          No Photo
+                        </div>
+                      )}
+                      <div style={{ padding: '12px', textAlign: 'center' }}>
+                        <h3 style={{ margin: '0 0 6px 0', fontSize: '15.5px', fontWeight: 'bold' }}>
+                          {atlet.Nama}
+                        </h3>
+                        <p style={{ color: '#94a3b8', margin: 0, fontSize: '13px' }}>
+                          {calculateAge(atlet.TanggalLahir)}
+                        </p>
                       </div>
-                    )}
-                    <div style={{ padding: '12px', textAlign: 'center' }}>
-                      <h3 style={{ margin: '0 0 6px 0', fontSize: '15.5px', fontWeight: 'bold' }}>
-                        {atlet.Nama}
-                      </h3>
-                      <p style={{ color: '#94a3b8', margin: 0, fontSize: '13px' }}>
-                        {calculateAge(atlet.TanggalLahir)}
-                      </p>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {selectedAtlet && (
-  <div>
-    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-      <button 
-        onClick={() => setSelectedAtlet(null)} 
-        style={{ 
-          padding: '8px 16px', 
-          background: 'transparent', 
-          border: '1px solid #fb923c', 
-          color: '#fb923c', 
-          borderRadius: '10px',
-          cursor: 'pointer'
-        }}
-      >
-        ← Kembali
-      </button>
-    </div>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+              <button 
+                onClick={() => setSelectedAtlet(null)} 
+                style={{ 
+                  padding: '8px 16px', 
+                  background: 'transparent', 
+                  border: '1px solid #fb923c', 
+                  color: '#fb923c', 
+                  borderRadius: '10px',
+                  cursor: 'pointer'
+                }}
+              >
+                ← Kembali
+              </button>
+            </div>
 
-    <div style={{ 
-      background: 'rgba(255,255,255,0.06)', 
-      borderRadius: '24px', 
-      padding: '28px',
-      border: '1px solid rgba(255,255,255,0.08)'
-    }}>
-      
-      {/* ===== HEADER ATLET (GAYA NANGGALA) ===== */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'flex-start', 
-        gap: '24px', 
-        marginBottom: '28px',
-        flexWrap: 'wrap'
-      }}>
-        {/* Avatar */}
-        <div style={{
-          width: '110px',
-          height: '110px',
-          borderRadius: '20px',
-          background: 'rgba(255,255,255,0.08)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '48px',
-          overflow: 'hidden',
-          flexShrink: 0
-        }}>
-          {selectedAtlet.Foto ? (
-            <img 
-              src={selectedAtlet.Foto} 
-              alt={selectedAtlet.Nama}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          ) : (
-            <span>🏋️</span>
-          )}
-        </div>
-
-        {/* Info Atlet */}
-        <div style={{ flex: 1, minWidth: '220px' }}>
-          <h1 style={{ 
-            fontSize: '32px', 
-            fontWeight: 'bold', 
-            margin: '0 0 6px 0',
-            color: 'white'
-          }}>
-            {selectedAtlet.Nama}
-          </h1>
-
-          <p style={{ 
-            color: '#f87171', 
-            fontSize: '15px', 
-            margin: '0 0 12px 0',
-            fontWeight: '500'
-          }}>
-            {selectedAtlet.Level || 'Atlet'} • {selectedAtlet.JenisKelamin || '-'}
-          </p>
-
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
-            <span style={{
-              background: 'rgba(248,113,113,0.15)',
-              color: '#f87171',
-              padding: '5px 14px',
-              borderRadius: '20px',
-              fontSize: '13px',
-              fontWeight: '500'
-            }}>
-              Umur: {calculateAge(selectedAtlet.TanggalLahir)}
-            </span>
-            <span style={{
-              background: 'rgba(56,189,248,0.15)',
-              color: '#38bdf8',
-              padding: '5px 14px',
-              borderRadius: '20px',
-              fontSize: '13px',
-              fontWeight: '500'
-            }}>
-              Data Real-time
-            </span>
-          </div>
-
-          {selectedAtlet.Level && (
-            <p style={{ color: '#94a3b8', margin: '8px 0 0 0', fontSize: '14px' }}>
-              {selectedAtlet.Level}
-            </p>
-          )}
-        </div>
-
-        {/* Tombol PDF */}
-        <div>
-          <button 
-            onClick={downloadPDF} 
-            style={{ 
-              padding: '12px 24px', 
-              background: '#38bdf8', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '12px', 
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            📄 Unduh Laporan PDF
-          </button>
-        </div>
-      </div>
-
-      {/* ===== 6 KARTU STATISTIK ===== */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-        gap: '14px',
-        marginBottom: '30px'
-      }}>
-        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{totalSesi}</div>
-          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Total Sesi</div>
-        </div>
-        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{bestGrade}</div>
-          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Best Grade</div>
-        </div>
-        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{rataRataGrade}</div>
-          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Rata-rata Grade</div>
-        </div>
-        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{sesiBulanIni}</div>
-          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Sesi Bulan Ini</div>
-        </div>
-        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{totalJam}</div>
-          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Total Jam Latihan</div>
-        </div>
-        <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{highGradeRate}</div>
-          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>High Grade Rate</div>
-        </div>
-      </div>
-              {/* Prestasi */}
-              {atletPrestasi.length > 0 && (
-                <div style={{ marginBottom: '30px' }}>
-                  <h3 style={{ marginBottom: '16px', color: '#22c55e' }}>🏆 Prestasi Atlet</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
-                    {atletPrestasi.map(p => (
-                      <div key={p.id} style={{ background: 'rgba(34,197,94,0.1)', padding: '14px 16px', borderRadius: '12px', border: '1px solid #22c55e', fontSize: '14px' }}>
-                        <strong>{p.JenisKejuaraan}</strong><br />
-                        <small>{p.Tanggal} • {p.katagori} • {p.Lokasi}</small><br />
-                        <span style={{ color: '#86efac', fontWeight: 'bold' }}>{p.Medali}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Chart Energy & Fatigue + Radar */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', marginBottom: '40px' }}>
-                <div ref={lineRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '20px', borderRadius: '16px', width: '100%' }}>
-                  <h3>Tren Energy & Fatigue</h3>
-                  <div style={{ height: '300px' }}>
-                    {atletSessions.length > 0 ? <Line data={lineData} options={lineOptions} /> : <p>Belum ada data</p>}
-                  </div>
-                </div>
-
-                <div ref={radarRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '20px', borderRadius: '16px', width: '100%' }}>
-                  <h3>8 Unsur Kebugaran Jasmani</h3>
-                  <div style={{ height: '320px' }}>
-                    {totalSessions > 0 ? <Radar data={radarData} options={radarOptions} /> : <p>Belum ada data</p>}
-                  </div>
-                </div>
+            {loadingDetail ? (
+              <div style={{ textAlign: 'center', padding: '100px 20px' }}>
+                <div style={{ fontSize: '48px', marginBottom: '20px' }}>⏳</div>
+                <p style={{ color: '#94a3b8', fontSize: '18px' }}>Memuat data atlet {selectedAtlet.Nama}...</p>
               </div>
-
-              {/* Progres Panjat Tebing */}
-              <div style={{ marginTop: '40px' }}>
-                <h3 style={{ color: '#3b82f6', marginBottom: '16px' }}>🧗 Progres Latihan Panjat Tebing Detail</h3>
-
-                {atletClimbing.length === 0 ? (
-                  <div style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px', textAlign: 'center' }}>
-                    <p>Belum ada data progres panjat tebing.</p>
+            ) : (
+              <div style={{ 
+                background: 'rgba(255,255,255,0.06)', 
+                borderRadius: '24px', 
+                padding: '28px',
+                border: '1px solid rgba(255,255,255,0.08)'
+              }}>
+                
+                {/* ===== HEADER ATLET ===== */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: '24px', 
+                  marginBottom: '28px',
+                  flexWrap: 'wrap'
+                }}>
+                  <div style={{
+                    width: '110px',
+                    height: '110px',
+                    borderRadius: '20px',
+                    background: 'rgba(255,255,255,0.08)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '48px',
+                    overflow: 'hidden',
+                    flexShrink: 0
+                  }}>
+                    {selectedAtlet.Foto ? (
+                      <img 
+                        src={selectedAtlet.Foto} 
+                        alt={selectedAtlet.Nama}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <span>🏋️</span>
+                    )}
                   </div>
-                ) : (
-                  <>
-                    <div style={{ background: 'rgba(255,255,255,0.06)', padding: '20px', borderRadius: '16px', marginBottom: '24px', overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                        <thead>
-                          <tr style={{ background: 'rgba(59,130,246,0.2)' }}>
-                            <th style={{ padding: '8px' }}>Minggu</th>
-                            <th>Grade</th>
-                            <th>Volume</th>
-                            <th>Sends</th>
-                            <th>Finger (s)</th>
-                            <th>Pull-up (kg)</th>
-                            <th>Core (s)</th>
-                            <th>Endurance</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {atletClimbing.map((c, i) => (
-                            <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                              <td style={{ padding: '8px', fontWeight: 'bold' }}>{c.minggu}</td>
-                              <td><strong style={{ color: '#3b82f6' }}>{c.grade}</strong></td>
-                              <td>{c.volumeClimbing}</td>
-                              <td>{c.sends}</td>
-                              <td>{c.fingerHang20mm}</td>
-                              <td>{c.weightedPullupKg}</td>
-                              <td>{c.corePlankSec}</td>
-                              <td>{c.enduranceArcMin} min</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
 
-                    {/* Chart Gabungan */}
-                    <div ref={combinedChartRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
-                      <h4 style={{ marginBottom: '16px' }}>📈 Progress Grade Maksimal & Volume</h4>
-                      <div style={{ height: '380px' }}>
-                        <Bar data={combinedChartData} options={combinedChartOptions} />
-                      </div>
-                    </div>
+                  <div style={{ flex: 1, minWidth: '220px' }}>
+                    <h1 style={{ 
+                      fontSize: '32px', 
+                      fontWeight: 'bold', 
+                      margin: '0 0 6px 0',
+                      color: 'white'
+                    }}>
+                      {selectedAtlet.Nama}
+                    </h1>
 
-                    <div ref={climbingRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
-                      <h4>Progres Grade Maksimal (Detail)</h4>
-                      <div style={{ height: '320px' }}>
-                        <Line data={gradeChartData} options={gradeOptions} />
-                      </div>
-                    </div>
+                    <p style={{ 
+                      color: '#f87171', 
+                      fontSize: '15px', 
+                      margin: '0 0 12px 0',
+                      fontWeight: '500'
+                    }}>
+                      {selectedAtlet.Level || 'Atlet'} • {selectedAtlet.JenisKelamin || '-'}
+                    </p>
 
-                    <div ref={strengthChartRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px' }}>
-                      <h4>Kekuatan Jari & Pulling Strength</h4>
-                      <div style={{ height: '320px' }}>
-                        <Line data={strengthChartData} options={strengthOptions} />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Evaluasi Mingguan */}
-              {weeklyEvaluation.length > 0 && (
-                <div style={{ marginTop: '40px' }}>
-                  <h3 style={{ color: '#a855f7', marginBottom: '16px' }}>📊 Evaluasi 2 Minggu Terakhir</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-                    {weeklyEvaluation.map((evalWeek, i) => (
-                      <div key={i} style={{
-                        background: 'rgba(255,255,255,0.06)',
-                        padding: '20px',
-                        borderRadius: '16px',
-                        border: '1px solid rgba(168, 85, 247, 0.3)'
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                      <span style={{
+                        background: 'rgba(248,113,113,0.15)',
+                        color: '#f87171',
+                        padding: '5px 14px',
+                        borderRadius: '20px',
+                        fontSize: '13px',
+                        fontWeight: '500'
                       }}>
-                        <h4 style={{ color: '#c084fc', marginBottom: '12px' }}>Minggu {evalWeek.minggu}</h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '14px' }}>
-                          <p><strong>Grade:</strong> <span style={{ color: '#a855f7' }}>{evalWeek.grade}</span></p>
-                          <p><strong>Volume:</strong> {evalWeek.volume}</p>
-                          <p><strong>Sends:</strong> {evalWeek.sends}</p>
-                          <p><strong>Finger Hang:</strong> {evalWeek.fingerHang}s</p>
-                          <p><strong>Pull-up:</strong> {evalWeek.pullUp}kg</p>
-                          <p><strong>Energy Avg:</strong> {evalWeek.energyAvg.toFixed(1)}/10</p>
-                        </div>
-                        {evalWeek.improvement !== 0 && (
-                          <p style={{ marginTop: '12px', color: evalWeek.improvement > 0 ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>
-                            {evalWeek.improvement > 0 ? '↑' : '↓'} Improvement: {evalWeek.improvement.toFixed(1)} grade
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                        Umur: {calculateAge(selectedAtlet.TanggalLahir)}
+                      </span>
+                      <span style={{
+                        background: 'rgba(56,189,248,0.15)',
+                        color: '#38bdf8',
+                        padding: '5px 14px',
+                        borderRadius: '20px',
+                        fontSize: '13px',
+                        fontWeight: '500'
+                      }}>
+                        Data Real-time
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <button 
+                      onClick={downloadPDF} 
+                      style={{ 
+                        padding: '12px 24px', 
+                        background: '#38bdf8', 
+                        color: 'white', 
+                        border: 'none', 
+                        borderRadius: '12px', 
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      📄 Unduh Laporan PDF
+                    </button>
                   </div>
                 </div>
-              )}
 
-              {/* Jadwal Latihan Mendatang */}
-              <div style={{ marginTop: '40px' }}>
-                <h3 style={{ color: '#eab308' }}>📊 Jadwal Latihan Mendatang</h3>
-                <div style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px' }}>
-                  <h4>Jadwal Latihan Mendatang</h4>
-                  {upcomingTrainings.length === 0 ? (
-                    <p>Belum ada jadwal mendatang untuk atlet ini.</p>
+                {/* ===== 6 KARTU STATISTIK ===== */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                  gap: '14px',
+                  marginBottom: '30px'
+                }}>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{totalSesi}</div>
+                    <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Total Sesi</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{bestGrade}</div>
+                    <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Best Grade</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{rataRataGrade}</div>
+                    <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Rata-rata Grade</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{sesiBulanIni}</div>
+                    <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Sesi Bulan Ini</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{totalJam}</div>
+                    <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>Total Jam Latihan</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#f87171' }}>{highGradeRate}</div>
+                    <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>High Grade Rate</div>
+                  </div>
+                </div>
+
+                {/* Prestasi */}
+                {atletPrestasi.length > 0 && (
+                  <div style={{ marginBottom: '30px' }}>
+                    <h3 style={{ marginBottom: '16px', color: '#22c55e' }}>🏆 Prestasi Atlet</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '12px' }}>
+                      {atletPrestasi.map(p => (
+                        <div key={p.id} style={{ background: 'rgba(34,197,94,0.1)', padding: '14px 16px', borderRadius: '12px', border: '1px solid #22c55e', fontSize: '14px' }}>
+                          <strong>{p.JenisKejuaraan}</strong><br />
+                          <small>{p.Tanggal} • {p.katagori} • {p.Lokasi}</small><br />
+                          <span style={{ color: '#86efac', fontWeight: 'bold' }}>{p.Medali}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Chart Energy & Fatigue + Radar */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', marginBottom: '40px' }}>
+                  <div ref={lineRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '20px', borderRadius: '16px', width: '100%' }}>
+                    <h3>Tren Energy & Fatigue</h3>
+                    <div style={{ height: '300px' }}>
+                      {atletSessions.length > 0 ? <Line data={lineData} options={lineOptions} /> : <p>Belum ada data</p>}
+                    </div>
+                  </div>
+
+                  <div ref={radarRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '20px', borderRadius: '16px', width: '100%' }}>
+                    <h3>8 Unsur Kebugaran Jasmani</h3>
+                    <div style={{ height: '320px' }}>
+                      {totalSessions > 0 ? <Radar data={radarData} options={radarOptions} /> : <p>Belum ada data</p>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progres Panjat Tebing */}
+                <div style={{ marginTop: '40px' }}>
+                  <h3 style={{ color: '#3b82f6', marginBottom: '16px' }}>🧗 Progres Latihan Panjat Tebing Detail</h3>
+
+                  {atletClimbing.length === 0 ? (
+                    <div style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px', textAlign: 'center' }}>
+                      <p>Belum ada data progres panjat tebing.</p>
+                    </div>
                   ) : (
-                    <div style={{ display: 'grid', gap: '12px' }}>
-                      {upcomingTrainings.map((u, i) => (
-                        <div key={i} style={{ background: 'rgba(234,179,8,0.1)', padding: '14px', borderRadius: '10px', border: '1px solid #eab308' }}>
-                          <strong>{u.tanggal}</strong> — {u.jenis_sesi}<br />
-                          Lokasi: {u.lokasi || '-'}<br />
-                          {u.catatan && <small style={{ color: '#94a3b8' }}>{u.catatan}</small>}
+                    <>
+                      <div style={{ background: 'rgba(255,255,255,0.06)', padding: '20px', borderRadius: '16px', marginBottom: '24px', overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                          <thead>
+                            <tr style={{ background: 'rgba(59,130,246,0.2)' }}>
+                              <th style={{ padding: '8px' }}>Minggu</th>
+                              <th>Grade</th>
+                              <th>Volume</th>
+                              <th>Sends</th>
+                              <th>Finger (s)</th>
+                              <th>Pull-up (kg)</th>
+                              <th>Core (s)</th>
+                              <th>Endurance</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {atletClimbing.map((c, i) => (
+                              <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                <td style={{ padding: '8px', fontWeight: 'bold' }}>{c.minggu}</td>
+                                <td><strong style={{ color: '#3b82f6' }}>{c.grade}</strong></td>
+                                <td>{c.volumeClimbing}</td>
+                                <td>{c.sends}</td>
+                                <td>{c.fingerHang20mm}</td>
+                                <td>{c.weightedPullupKg}</td>
+                                <td>{c.corePlankSec}</td>
+                                <td>{c.enduranceArcMin} min</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div ref={combinedChartRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
+                        <h4 style={{ marginBottom: '16px' }}>📈 Progress Grade Maksimal & Volume</h4>
+                        <div style={{ height: '380px' }}>
+                          <Bar data={combinedChartData} options={combinedChartOptions} />
+                        </div>
+                      </div>
+
+                      <div ref={climbingRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px', marginBottom: '24px' }}>
+                        <h4>Progres Grade Maksimal (Detail)</h4>
+                        <div style={{ height: '320px' }}>
+                          <Line data={gradeChartData} options={gradeOptions} />
+                        </div>
+                      </div>
+
+                      <div ref={strengthChartRef} style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px' }}>
+                        <h4>Kekuatan Jari & Pulling Strength</h4>
+                        <div style={{ height: '320px' }}>
+                          <Line data={strengthChartData} options={strengthOptions} />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Evaluasi Mingguan */}
+                {weeklyEvaluation.length > 0 && (
+                  <div style={{ marginTop: '40px' }}>
+                    <h3 style={{ color: '#a855f7', marginBottom: '16px' }}>📊 Evaluasi 2 Minggu Terakhir</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                      {weeklyEvaluation.map((evalWeek, i) => (
+                        <div key={i} style={{
+                          background: 'rgba(255,255,255,0.06)',
+                          padding: '20px',
+                          borderRadius: '16px',
+                          border: '1px solid rgba(168, 85, 247, 0.3)'
+                        }}>
+                          <h4 style={{ color: '#c084fc', marginBottom: '12px' }}>Minggu {evalWeek.minggu}</h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '14px' }}>
+                            <p><strong>Grade:</strong> <span style={{ color: '#a855f7' }}>{evalWeek.grade}</span></p>
+                            <p><strong>Volume:</strong> {evalWeek.volume}</p>
+                            <p><strong>Sends:</strong> {evalWeek.sends}</p>
+                            <p><strong>Finger Hang:</strong> {evalWeek.fingerHang}s</p>
+                            <p><strong>Pull-up:</strong> {evalWeek.pullUp}kg</p>
+                            <p><strong>Energy Avg:</strong> {evalWeek.energyAvg.toFixed(1)}/10</p>
+                          </div>
+                          {evalWeek.improvement !== 0 && (
+                            <p style={{ marginTop: '12px', color: evalWeek.improvement > 0 ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>
+                              {evalWeek.improvement > 0 ? '↑' : '↓'} Improvement: {evalWeek.improvement.toFixed(1)} grade
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Jadwal Latihan Mendatang */}
+                <div style={{ marginTop: '40px' }}>
+                  <h3 style={{ color: '#eab308' }}>📅 Jadwal Latihan Mendatang</h3>
+                  <div style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px' }}>
+                    {upcomingTrainings.length === 0 ? (
+                      <p>Belum ada jadwal mendatang untuk atlet ini.</p>
+                    ) : (
+                      <div style={{ display: 'grid', gap: '12px' }}>
+                        {upcomingTrainings.map((u, i) => (
+                          <div key={i} style={{ background: 'rgba(234,179,8,0.1)', padding: '14px', borderRadius: '10px', border: '1px solid #eab308' }}>
+                            <strong>{u.tanggal}</strong> — {u.jenis_sesi}<br />
+                            Lokasi: {u.lokasi || '-'}<br />
+                            {u.catatan && <small style={{ color: '#94a3b8' }}>{u.catatan}</small>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sertifikat */}
+                <div style={{ marginTop: '40px' }}>
+                  <h3 style={{ color: '#22c55e', marginBottom: '16px' }}>📜 Sertifikat Atlet</h3>
+                  {certificates.length === 0 ? (
+                    <div style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px', textAlign: 'center' }}>
+                      <p style={{ color: '#94a3b8' }}>Belum ada sertifikat.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                      {certificates.map((cert) => (
+                        <div key={cert.id} style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid #22c55e', borderRadius: '16px', padding: '20px' }}>
+                          <h4 style={{ margin: '0 0 8px 0', color: '#86efac' }}>{cert.certificate_name}</h4>
+                          <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '12px' }}>
+                            Di-upload: {new Date(cert.uploaded_at).toLocaleDateString('id-ID')}
+                          </p>
+                          <button onClick={() => downloadCertificate(cert.file_url, cert.certificate_name)} style={{ width: '100%', padding: '12px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}>
+                            📥 Download Sertifikat
+                          </button>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
-
-              {/* Sertifikat */}
-              <div style={{ marginTop: '40px' }}>
-                <h3 style={{ color: '#22c55e', marginBottom: '16px' }}>📜 Sertifikat Atlet</h3>
-                {certificates.length === 0 ? (
-                  <div style={{ background: 'rgba(255,255,255,0.06)', padding: '24px', borderRadius: '16px', textAlign: 'center' }}>
-                    <p style={{ color: '#94a3b8' }}>Belum ada sertifikat.</p>
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                    {certificates.map((cert) => (
-                      <div key={cert.id} style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid #22c55e', borderRadius: '16px', padding: '20px' }}>
-                        <h4 style={{ margin: '0 0 8px 0', color: '#86efac' }}>{cert.certificate_name}</h4>
-                        <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '12px' }}>
-                          Di-upload: {new Date(cert.uploaded_at).toLocaleDateString('id-ID')}
-                        </p>
-                        <button onClick={() => downloadCertificate(cert.file_url, cert.certificate_name)} style={{ width: '100%', padding: '12px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}>
-                          📥 Download Sertifikat
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         )}
       </div>
