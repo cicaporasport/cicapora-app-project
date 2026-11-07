@@ -6,26 +6,24 @@ export default function StandaloneGuard({ children }: { children: React.ReactNod
   const [isAllowed, setIsAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // === 1. Blokir Install Prompt ===
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // === 2. Deteksi apakah diizinkan ===
     const checkAccess = () => {
-      // Izinkan selalu saat development (localhost)
-      const isLocalhost = 
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1';
+      // === 1. Cek link khusus ===
+      const urlParams = new URLSearchParams(window.location.search);
+      const hasSpecialAccess = urlParams.get('access') === 'cicapore2026';
 
-      if (isLocalhost) {
-        setIsAllowed(true);
-        return;
+      // Simpan di localStorage supaya tidak perlu pakai parameter terus
+      if (hasSpecialAccess) {
+        localStorage.setItem('special_access', 'true');
       }
 
-      // Di production, hanya izinkan jika standalone / TWA
+      const hasSavedAccess = localStorage.getItem('special_access') === 'true';
+
+      // === 2. Cek standalone / TWA ===
       const isStandalone =
         window.matchMedia('(display-mode: standalone)').matches ||
         (window.navigator as any).standalone === true;
@@ -33,7 +31,10 @@ export default function StandaloneGuard({ children }: { children: React.ReactNod
       const isTWA = document.referrer.includes('android-app://');
       const isFromInstalledApp = isStandalone || isTWA;
 
-      setIsAllowed(isFromInstalledApp);
+      // Izinkan jika: dari APK ATAU punya akses khusus
+      const allowed = isFromInstalledApp || hasSpecialAccess || hasSavedAccess;
+
+      setIsAllowed(allowed);
     };
 
     checkAccess();
@@ -43,7 +44,6 @@ export default function StandaloneGuard({ children }: { children: React.ReactNod
     };
   }, []);
 
-  // Loading state
   if (isAllowed === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white">
@@ -52,14 +52,11 @@ export default function StandaloneGuard({ children }: { children: React.ReactNod
     );
   }
 
-  // Kalau dibuka di browser biasa (production)
   if (!isAllowed) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white px-6 text-center">
         <div className="max-w-md">
-          <h1 className="text-2xl md:text-3xl font-bold mb-4">
-            Akses Ditolak
-          </h1>
+          <h1 className="text-2xl md:text-3xl font-bold mb-4">Akses Ditolak</h1>
           <p className="text-gray-300 mb-3">
             Aplikasi ini <strong>hanya dapat digunakan</strong> melalui aplikasi yang sudah diinstall (APK).
           </p>
@@ -71,6 +68,5 @@ export default function StandaloneGuard({ children }: { children: React.ReactNod
     );
   }
 
-  // Diizinkan → tampilkan aplikasi
   return <>{children}</>;
 }
