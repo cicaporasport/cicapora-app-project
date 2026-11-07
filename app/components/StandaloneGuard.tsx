@@ -8,29 +8,32 @@ export default function StandaloneGuard({ children }: { children: React.ReactNod
   useEffect(() => {
     // === 1. Blokir Install Prompt ===
     const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault(); // Mencegah browser menampilkan tombol Install
-      // console.log('Install prompt diblokir');
+      e.preventDefault();
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     // === 2. Deteksi apakah diizinkan ===
     const checkAccess = () => {
+      // Izinkan selalu saat development (localhost)
+      const isLocalhost = 
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1';
+
+      if (isLocalhost) {
+        setIsAllowed(true);
+        return;
+      }
+
+      // Di production, hanya izinkan jika standalone / TWA
       const isStandalone =
         window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as any).standalone === true; // iOS
+        (window.navigator as any).standalone === true;
 
-      const isTWA = document.referrer.includes('android-app://'); // PWA Builder / TWA
+      const isTWA = document.referrer.includes('android-app://');
       const isFromInstalledApp = isStandalone || isTWA;
 
-      // Deteksi tambahan (lebih ketat)
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const hasDisplayMode = window.matchMedia('(display-mode: standalone)').matches;
-
-      // Hanya izinkan jika benar-benar dari app yang terinstall
-      const allowed = isFromInstalledApp;
-
-      setIsAllowed(allowed);
+      setIsAllowed(isFromInstalledApp);
     };
 
     checkAccess();
@@ -49,7 +52,7 @@ export default function StandaloneGuard({ children }: { children: React.ReactNod
     );
   }
 
-  // Kalau dibuka di browser biasa
+  // Kalau dibuka di browser biasa (production)
   if (!isAllowed) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white px-6 text-center">
